@@ -7,9 +7,10 @@ if [ "$(uname -s)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
   exit 1
 fi
 cargo build --release
+mkdir -p "$ROOT/target/swift-cache"
 APP="$ROOT/dist/HarborVM.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/guest"
-xcrun swiftc -swift-version 5 -O -target arm64-apple-macos14.0 \
+xcrun swiftc -module-cache-path "$ROOT/target/swift-cache" -swift-version 5 -O -target arm64-apple-macos14.0 \
   -framework AppKit -framework SwiftUI -framework Virtualization \
   platform/macos/*.swift -o "$APP/Contents/MacOS/HarborVM"
 cp target/release/harborvm "$APP/Contents/MacOS/harborvm"
