@@ -28,3 +28,20 @@ fn exclusive_locks_release_on_drop() {
     assert!(safe_fs::Lock::acquire(&path).is_err());
     drop(lock); assert!(safe_fs::Lock::acquire(&path).is_ok());
 }
+
+#[test]
+fn pinned_directory_survives_guest_path_replacement() {
+    let temp = tempfile::tempdir().unwrap();
+    let base = temp.path().canonicalize().unwrap();
+    let inbox = base.join("inbox");
+    let outside = base.join("outside");
+    std::fs::create_dir(&inbox).unwrap();
+    std::fs::create_dir(&outside).unwrap();
+    let directory = safe_fs::Directory::open(&inbox).unwrap();
+    std::fs::rename(&inbox,base.join("old")).unwrap();
+    std::os::unix::fs::symlink(&outside,&inbox).unwrap();
+    directory.write_new("request.json",b"safe").unwrap();
+    assert!(!outside.join("request.json").exists());
+    assert_eq!(directory.read("request.json",100).unwrap(),b"safe");
+    assert!(safe_fs::Directory::open(&inbox).is_err());
+}

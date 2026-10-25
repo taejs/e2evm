@@ -8,6 +8,18 @@ fn run() -> Result<()> {
     let store = Store::open(Store::default_root()?)?;
     let arg = |i: usize| args.get(i).map(String::as_str).ok_or_else(|| anyhow::anyhow!("Missing argument; run harborvm help"));
     let result = match (arg(0)?, arg(1)?) {
+        ("prepare", id) => {
+            let cache = if args.len() == 4 && arg(2)? == "--cache" { Some(std::path::Path::new(arg(3)?)) } else if args.len() == 2 { None } else { bail!("Usage: prepare ID [--cache DIRECTORY]"); };
+            harborvm::provision::prepare(&store, id, cache)?;
+            store.descriptor(id)?
+        }
+        ("exec", id) => {
+            if arg(2)? != "--" { bail!("Usage: exec ID -- PROGRAM [ARG...]"); }
+            let value = harborvm::guest::execute(&store,id,&args[3..],60)?;
+            println!("{}", serde_json::to_string_pretty(&value)?);
+            if value["ok"] != true { std::process::exit(1); }
+            return Ok(());
+        }
         ("profile", "list") => json!(store.list()?),
         ("profile", "show") => store.descriptor(arg(2)?)?,
         ("profile", "create") => {
