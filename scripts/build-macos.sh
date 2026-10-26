@@ -12,7 +12,7 @@ APP="$ROOT/dist/HarborVM.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/guest"
 xcrun swiftc -module-cache-path "$ROOT/target/swift-cache" -swift-version 5 -O -target arm64-apple-macos14.0 \
   -framework AppKit -framework SwiftUI -framework Virtualization \
-  platform/macos/*.swift -o "$APP/Contents/MacOS/HarborVM"
+  platform/macos/*.swift -o "$APP/Contents/MacOS/HarborVMDesktop"
 cp target/release/harborvm "$APP/Contents/MacOS/harborvm"
 cp platform/macos/Info.plist "$APP/Contents/Info.plist"
 cp guest/worker.py guest/setup.sh "$APP/Contents/Resources/guest/"

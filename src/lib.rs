@@ -5,5 +5,5 @@ pub use anyhow::{Context, Result, bail};
 pub mod guest;
 pub mod provision;
 
-pub mod bridge;
 pub mod assistant;
+pub mod bridge;

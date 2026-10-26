@@ -50,7 +50,14 @@ final class NativeMachine: NSObject, VZVirtualMachineDelegate {
         try requirePrivateDirectory(directory)
         let lease = try FileLease(directory + "/profile.lock")
         for file in ["disk.img", "kernel", "initrd", "seed.iso"] { try requireRegularFile(directory + "/" + file) }
-        let disk = try FileLease(directory + "/disk.img", create: false)
+        // VZ acquires its own image lock when starting. Holding flock on the image
+        // ourselves makes the VZ storage service reject it. Pin identity in a sidecar.
+        let leaseDirectory = root + "/disk-leases"
+        try FileManager.default.createDirectory(atPath: leaseDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try requirePrivateDirectory(leaseDirectory)
+        var diskInfo = stat()
+        guard lstat(directory + "/disk.img", &diskInfo) == 0 else { throw HarborError("Cannot identify disk") }
+        let disk = try FileLease(leaseDirectory + "/\(diskInfo.st_dev)-\(diskInfo.st_ino).lock")
         try requirePrivateDirectory(directory + "/mailbox")
         let config = VZVirtualMachineConfiguration()
         config.cpuCount = profile.cpus
@@ -61,7 +68,7 @@ final class NativeMachine: NSObject, VZVirtualMachineDelegate {
         config.bootLoader = boot
         config.platform = VZGenericPlatformConfiguration()
         let mainDisk = try VZDiskImageStorageDeviceAttachment(url: URL(fileURLWithPath: directory + "/disk.img"), readOnly: false, cachingMode: .cached, synchronizationMode: .fsync)
-        let seedDisk = try VZDiskImageStorageDeviceAttachment(url: URL(fileURLWithPath: directory + "/seed.iso"), readOnly: true)
+        let seedDisk = try VZDiskImageStorageDeviceAttachment(url: URL(fileURLWithPath: directory + "/seed.iso"), readOnly: true, cachingMode: .cached, synchronizationMode: .fsync)
         config.storageDevices = [VZVirtioBlockDeviceConfiguration(attachment: mainDisk), VZVirtioBlockDeviceConfiguration(attachment: seedDisk)]
         let network = VZVirtioNetworkDeviceConfiguration(); network.attachment = VZNATNetworkDeviceAttachment()
         config.networkDevices = [network]
