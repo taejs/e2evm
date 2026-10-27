@@ -1,0 +1,59 @@
+# Validation record
+
+Recorded on 2026-10-27 on Apple Silicon. This is functional verification of the tested configuration, not a security certification or a guarantee for every guest, provider, or website.
+
+## Automated checks
+
+- Rust formatting and all-target Clippy with warnings denied passed.
+- 42 Rust tests passed: 9 preparation recovery cases, 6 local-assistant cases, 9 HTTP-provider cases, 6 profile/filesystem cases, 3 branding/environment cases, 5 native-bridge cases and 4 real Rust-to-Python-worker transport cases.
+- 22 agent-tool tests passed: selected skill installation, dry-run without writes, collision refusal without replacing files, source-link rejection, and browser assertion/capture/transport failure evidence. These tests run in temporary directories and do not modify personal agent configuration.
+- The bridge tests invoke the actual CLI for missing and stale sockets. A stopped listener previously made `status` exit 1; the fix reports stopped with exit 0 while unsafe paths, wrong reply IDs, truncated replies and connected errors still fail. Fixture connections and reads have deadlines.
+- Transport integration runs the real worker serve loop against a temporary mailbox: exact Unicode/empty/shell-like arguments, exit 7 and output, timeout recovery, expired and mismatched requests, rejected reply IDs, and no replay after the worker dies between execution and response. The fixture adapts the guest home/account to its temporary environment; it does not boot a VM or substitute protocol results.
+- 6 guest-worker tests passed, including a child that closes output but continues running past its deadline and a detached child retaining stdout. The detached-output regression failed before the fix at 4.041 seconds for a 1-second limit, then passed with a bounded drain and successful following command.
+- Native ownership, safe paths, lifecycle transitions and keyboard mapping checks passed. The shutdown harness rejected new socket/UI work while an existing job completed cancellation; removing the admission guards reproduced the regression.
+- Preparation recovery tests cover 18 injected interruption boundaries across Linux and macOS, metadata lock contention, foreign destinations, symlinks, changed files and incomplete installs without a journal.
+- Stale desktop requests for API server A were rejected after switching the profile to B; a listening B endpoint received no connection, key or conversation. Matching connection snapshots retained the existing provider and Codex test behavior.
+- Whole-app Swift typechecking with warnings treated as errors passed; signed native app build passed.
+- macOS preparation helper rejected nine invalid/unsafe invocation cases. The guest bootstrap rejected execution on the physical host before mutation.
+- Skill frontmatter, linked files, installer overwrite refusal, shell syntax and runnable Python example checks passed.
+- The portable CI commands also passed inside a real Ubuntu ARM64 guest on source revision `796aceb`, using stable Rust 1.99.1 and one build job: formatting, all-target Clippy with warnings denied, 30 Rust tests, 6 guest-worker tests and shell syntax. This verifies the Linux command sequence separately from macOS; the first GitHub-hosted run subsequently passed on `5cf9492`, including both the Ubuntu portable checks and the Apple Silicon native test/build/sign job.
+
+## Real guest and application checks
+
+| Check | Observed result |
+| --- | --- |
+| Fresh Ubuntu boot | Actual native VM display and guest command worker available |
+| Default browser setup | Chrome 156.0.8078.47, Python 3.14.4, Node 22.22.1, Python Playwright 1.64.1 installed |
+| Guest command transport | Unicode argument returned correctly; failures report nonzero status |
+| Browser persistence | A disposable cookie survived graceful VM stop and restart |
+| Native input isolation | Click, Ctrl+A and ASCII text produced the exact expected DOM input value; host pointer coordinates and clipboard change count stayed identical |
+| Background start and selection | Starting a stopped validation VM launched the native app behind the current app; starting and selecting preserved the foreground app PID/bundle, pointer coordinates and clipboard change count |
+| Full screen and collapsed console | After rebuilding, actual background startup reported inactive, not full screen, and console hidden. Explicit `app` opening reported full screen with the console still hidden; the native workspace capture was inspected. Pause/resume and stopped status after normal app quit also passed. |
+| Lifecycle | Pause/resume, pending graceful shutdown, actual stop, refusal to quit with an active VM, and close/reopen while retaining the VM verified |
+| Stopped-app quit | Native process exited successfully in 0.02 seconds after the termination-loop fix |
+| Minimal Linux setup | Fresh `--without all` guest completed bootstrap; desktop, Chrome, Python development packages, Node/npm and venv absent; core command transport worked |
+| macOS installation | Fresh 64 GiB disk installed from a cached public Apple 25G83 restore image; native state running and Setup Assistant visibly rendered |
+| Agent skill smoke and required captures | Two assertions passed against a local HTML fixture; actual JPEG returned through the bounded guest result channel and inspected. An intentional assertion failure still returned its real screenshot before cleanup. An injected capture failure kept both assertions passed but blocked evidence delivery and returned nonzero. |
+| Runnable setup skill | The bundled `e2evm-setup` helper ran against the real Ubuntu VM after the native app rebuild/restart. Its title and heading assertions passed, and the actual JPEG was transferred and inspected. The reused pre-rename guest has `harbor-browser`; the skills now document that existing launcher without requiring a setup rerun. Fresh setup supplies `e2evm-browser`. |
+| Real OpenCut Classic flow | On revision `cf5e79e919144200294fb9fed22a222592a0aeea`, an actual project-name validation change passed 12 assertions: new project, empty-name rejection, Enter guard, trimmed valid name, and persistence after reload. Two repeat runs and a third run during native-window recording passed. After the E2EVM rename, two further runs passed and a new native recording passed all 12 checks in 18.63 seconds. |
+| Wafflebase spreadsheet flow | On upstream revision `225b258c1025a86b1466d84b3e13915c0ce4173c`, Playwright entered SUM formulas, changed a sales value, verified the recalculated total, and applied bold/green formatting. Nine outcome checks and range-selection assertions passed in two repeat runs and a third 17.393-second native recording. This uses the upstream local in-memory development harness, without its backend or collaboration services. |
+| Supervised guest job | Launch returned in 0.112 seconds; 3-second job subsequently reported successful completion and expected journal output |
+| Codex connection | Existing local CLI sign-in produced a real assistant response |
+
+## Boundaries of this evidence
+
+macOS was verified through its visible Setup Assistant. A new guest account and its Python/Homebrew connection bootstrap have not been completed in the test image. Linux paths and package commands must not be applied to macOS. The user must complete first-run setup inside the guest.
+
+Ollama and OpenAI-compatible discovery/streaming were tested against deterministic local HTTP fixtures, including cancellation, credential redaction, redirects and size limits. No live Ollama model or paid compatible service was used. The assistant displays replies; it does not execute them.
+
+The browser smoke fixture verifies the guest integration, not an application's business flow. Actual application tests need their own assertions and evidence. GPU-heavy applications can need additional graphics support: OpenCut Classic's editor rendered with an experimental software WebGPU configuration, but its text preview encountered an upstream graphics error. Do not interpret project-management test success as video-rendering or export support.
+
+Native cached-view screenshots successfully captured the actual Linux browser and macOS Setup Assistant in the tested app. Rendering may differ by guest or GPU-backed application; inspect results and fail visibly if a capture is incomplete. Keyboard typing uses the supported US-layout scan codes; Unicode belongs in the guest command channel.
+
+Public screenshots and recordings use disposable test state. No existing production VM disk, account, or worker was used as the test machine.
+
+## Release review
+
+Review `20261027-release-6ac815b0` covered correctness, tests, maintainability, agent integration, security, API contracts, reliability, Swift and adversarial cases. Five validated findings were fixed and received focused follow-up inspection. A different-provider review CLI was unavailable, so the adversarial pass used the available agent route. E2EVM is the selected public identity. Its rename received focused compatibility review; the signed app opened the existing development guest and executed a command successfully. GitHub-hosted portable and Apple Silicon native checks passed on `5cf9492`; later documentation-only changes are checked again by the same workflow.
+
+A subsequent source audit covered Rust storage/preparation/IPC, Python request consumption and deadlines, native VM ownership/lifecycle, and assistant streaming/connection changes. It confirmed the stale-socket status defect described above, which was fixed and regression-tested. It also identified the missing Rust-to-worker test coverage now included in CI. This was a single reviewer pass followed by focused inspection of the fixes, not another full multi-reviewer release audit. Historical source revisions above predate the user-requested commit author/email rewrite; that rewrite preserved file contents.

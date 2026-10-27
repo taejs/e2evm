@@ -6,3 +6,6 @@
 *.log
 *.sock
 .env*
+
+__pycache__/
+*.pyc

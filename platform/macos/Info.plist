@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleName</key><string>E2EVM</string>
+<key>CFBundleDisplayName</key><string>E2EVM</string>
+<key>CFBundleIdentifier</key><string>io.github.taejs.e2evm</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleShortVersionString</key><string>0.1.0</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleExecutable</key><string>E2EVMDesktop</string>
+<key>CFBundleIconFile</key><string>E2EVM</string>
+<key>LSMinimumSystemVersion</key><string>14.0</string>
+<key>NSHighResolutionCapable</key><true/>
+</dict></plist>

@@ -1,0 +1,4 @@
+interface:
+  display_name: "E2EVM Browser Tests"
+  short_description: "Test in the isolated E2EVM browser"
+  default_prompt: "Use $guest-e2e to test my app in the selected E2EVM guest and attach inspected screenshots with the assertions; report incomplete evidence if images cannot be delivered."
