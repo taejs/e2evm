@@ -8,6 +8,8 @@ import re
 import signal
 import subprocess
 import time
+import threading
+import uuid
 
 MAX_OUTPUT = 256 * 1024
 ID = re.compile(r"^[a-z0-9-]{1,100}$")
@@ -29,7 +31,7 @@ def read_regular(path, limit=65536):
 
 
 def write_reply(path, value):
-    temp = path.with_suffix(".tmp")
+    temp = path.with_name(path.name + "." + uuid.uuid4().hex + ".tmp")
     fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "w") as stream:
         json.dump(value, stream, ensure_ascii=False)
@@ -59,10 +61,13 @@ def execute(request):
     selector = selectors.DefaultSelector()
     selector.register(process.stdout, selectors.EVENT_READ)
     try:
-        while selector.get_map():
+        while selector.get_map() or process.poll() is None:
             if time.monotonic() > deadline:
                 timed_out = True
-                os.killpg(process.pid, signal.SIGKILL)
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
                 deadline = float("inf")
             for key, _ in selector.select(0.1):
                 data = os.read(key.fd, 8192)
@@ -84,15 +89,20 @@ def execute(request):
             "timed_out": timed_out, "target": "guest"}
 
 
+def keep_heartbeat(mailbox):
+    while True:
+        try:
+            write_reply(mailbox / "heartbeat.json", {"version": 1, "timestamp": time.time(), "target": "guest"})
+        except OSError:
+            pass
+        time.sleep(1)
+
+
 def serve(mailbox):
     for name in ("commands", "replies"):
         (mailbox / name).mkdir(exist_ok=True)
+    threading.Thread(target=keep_heartbeat, args=(mailbox,), daemon=True).start()
     while True:
-        heartbeat = mailbox / "heartbeat.json"
-        try:
-            write_reply(heartbeat, {"version": 1, "timestamp": time.time(), "target": "guest"})
-        except FileExistsError:
-            pass
         for path in sorted((mailbox / "commands").glob("*.json")):
             request_id = path.stem
             if not ID.fullmatch(request_id):
