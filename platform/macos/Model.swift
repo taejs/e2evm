@@ -380,7 +380,8 @@ final class WorkspaceModel: ObservableObject {
             if action == "quit" {
                 guard !hasActiveMachines, !preparing else { throw HarborError("Stop active machines and finish disk preparation before quitting") }
                 completion(["ok": true])
-                DispatchQueue.main.async { NSApp.terminate(nil) }
+                // Finish this control request before beginning application cleanup.
+                RunLoop.main.perform { NSApp.terminate(nil) }
                 return
             }
             if action == "close-window" {

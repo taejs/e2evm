@@ -5,6 +5,8 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     var model: WorkspaceModel!
     var server: ControlServer?
     var window: NSWindow!
+    private var terminationPending = false
+    private var terminationReady = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
             let arguments = CommandLine.arguments
@@ -66,6 +68,7 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { window?.makeKeyAndOrderFront(nil); return true }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if terminationReady { return .terminateNow }
         guard let model else { return .terminateNow }
         if model.hasActiveMachines || model.preparing || model.creating {
             model.errorMessage = model.hasActiveMachines
@@ -74,9 +77,17 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             window.makeKeyAndOrderFront(nil)
             return .terminateCancel
         }
-        // Codex owns subprocess-group cleanup. Wait for its Rust supervisor to finish.
-        model.finishProcesses { DispatchQueue.main.async { sender.reply(toApplicationShouldTerminate: true) } }
-        return .terminateLater
+        if terminationPending { return .terminateCancel }
+        terminationPending = true
+        // Keep the normal event loop alive while Rust finishes subprocess-group cleanup.
+        // terminateLater enters an AppKit modal loop that can starve these callbacks.
+        model.finishProcesses { [weak self] in
+            DispatchQueue.main.async {
+                self?.terminationReady = true
+                sender.terminate(nil)
+            }
+        }
+        return .terminateCancel
     }
 }
 
