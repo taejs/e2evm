@@ -51,4 +51,6 @@ The [design document](design.md) records the Orca and Ollama references. No refe
 
 ## Demonstration content
 
-The workspace screenshot shows [Wafflebase](https://github.com/wafflebase/wafflebase) at revision `225b258c1025a86b1466d84b3e13915c0ce4173c`, licensed [Apache-2.0](licenses/Wafflebase-Apache-2.0.txt). It uses the upstream local in-memory spreadsheet development harness with disposable sales data. No Wafflebase source code or executable is bundled. The screenshot records actual Playwright interactions in the Linux guest; it does not demonstrate the complete hosted product or its collaboration backend.
+The workspace screenshot shows [OpenCut Classic](https://github.com/OpenCut-app/opencut-classic) at revision `cf5e79e919144200294fb9fed22a222592a0aeea`, with a local project-name validation fix, licensed [MIT](licenses/OpenCut-MIT.txt). It records actual Playwright interactions in a disposable Linux guest. It demonstrates project-name validation, saving, and reload persistence; it does not demonstrate timeline rendering or video export. No OpenCut executable is bundled.
+
+Earlier spreadsheet validation used [Wafflebase](https://github.com/wafflebase/wafflebase) at revision `225b258c1025a86b1466d84b3e13915c0ce4173c` under [Apache-2.0](licenses/Wafflebase-Apache-2.0.txt). Those checks used its local in-memory development harness without the collaboration backend.

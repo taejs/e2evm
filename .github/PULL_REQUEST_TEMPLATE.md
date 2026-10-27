@@ -1,14 +1,11 @@
 ## Problem and behavior
 
-Explain the problem and what changes for the user.
+<!-- What was happening, and what happens with this change? Link an issue if relevant. -->
 
 ## Validation
 
-List relevant checks and their results. Distinguish fixtures from real VM or model-provider tests. Note anything not verified.
+<!-- Name the checks you ran and their results. Separate fixtures from real VM/provider tests. State anything not verified and why. -->
 
 ## Review notes
 
-Include a redacted screenshot for UI changes and any compatibility or migration considerations.
-
-- [ ] I reviewed the diff for credentials, private runtime data, and unrelated files.
-- [ ] I updated relevant documentation and dependency/license notes.
+<!-- Optional: redacted UI screenshots/recordings, compatibility or migration notes, and dependency/license changes. Remove this section if unused. -->
