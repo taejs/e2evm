@@ -1,6 +1,6 @@
 # E2EVM
 
-https://github.com/user-attachments/assets/97017c14-0837-447a-b53c-8ba10b4b690e
+https://github.com/user-attachments/assets/15398098-c5da-48ab-a22f-229fb9b5df70
 
 **E2EVM is an open-source local VM workspace for AI agent browser testing on Apple Silicon Macs.** Run headed Playwright tests and browser automation on a separate guest desktop while you keep using your Mac.
 
