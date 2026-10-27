@@ -10,7 +10,7 @@ install -m 755 /mnt/harbor-kit/worker.py /usr/local/bin/harborvm-worker
 mkdir -p /var/lib/harborvm /usr/local/share/harborvm
 cat > /etc/systemd/system/harborvm-setup.service <<'SETUP'
 [Unit]
-Description=Finish HarborVM browser workstation setup
+Description=Finish E2EVM browser workstation setup
 Wants=network-online.target
 After=network-online.target
 RequiresMountsFor=/mnt/harbor /mnt/harbor-kit
@@ -25,7 +25,7 @@ WantedBy=multi-user.target
 SETUP
 cat > /etc/systemd/system/harborvm-worker.service <<'SERVICE'
 [Unit]
-Description=HarborVM guest command worker
+Description=E2EVM guest command worker
 After=local-fs.target
 RequiresMountsFor=/mnt/harbor
 [Service]
@@ -80,6 +80,11 @@ nohup google-chrome --user-data-dir="$HOME/.local/share/harborvm/chrome" \
   </dev/null >"$HOME/.local/share/harborvm/browser.log" 2>&1 &
 BROWSER
 chmod 755 /usr/local/bin/harbor-browser
+cat > /usr/local/bin/e2evm-browser <<'BROWSER_ALIAS'
+#!/bin/sh
+exec /usr/local/bin/harbor-browser "$@"
+BROWSER_ALIAS
+chmod 755 /usr/local/bin/e2evm-browser
 fi
 if [ "$SETUP_DESKTOP" = 1 ]; then
 mkdir -p /etc/lightdm/lightdm.conf.d /home/harbor/.config/openbox
@@ -92,7 +97,7 @@ LIGHTDM
 cat > /home/harbor/.config/openbox/autostart <<'DESKTOP'
 xsetroot -solid '#17252b'
 DESKTOP
-if [ "$SETUP_BROWSER" = 1 ]; then printf 'harbor-browser\n' >> /home/harbor/.config/openbox/autostart; fi
+if [ "$SETUP_BROWSER" = 1 ]; then printf 'e2evm-browser\n' >> /home/harbor/.config/openbox/autostart; fi
 chown -R harbor:harbor /home/harbor/.config
 systemctl enable lightdm
 systemctl set-default graphical.target

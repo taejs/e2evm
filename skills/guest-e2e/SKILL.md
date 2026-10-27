@@ -1,23 +1,23 @@
 ---
 name: guest-e2e
-description: Run browser E2E tests in a HarborVM guest when the user requests HarborVM or its isolated browser workspace. Use the guest CLI, reuse installed browser tools, and return test evidence. Does not select HarborVM for unrelated browser tasks.
+description: Run browser E2E tests in a E2EVM guest when the user requests E2EVM or its isolated browser workspace. Use the guest CLI, reuse installed browser tools, and return test evidence. Does not select E2EVM for unrelated browser tasks.
 ---
 
 # Guest E2E
 
-Run the requested browser flow inside the selected VM while the user keeps using their Mac. The external coding agent drives `harborvm`; the app's assistant panel is chat-only and does not execute its replies.
+Run the requested browser flow inside the selected VM while the user keeps using their Mac. The external coding agent drives `e2evm`; the app's assistant panel is chat-only and does not execute its replies.
 
 ## Establish the target
 
-- Run `harborvm help`, `harborvm profile list`, then `harborvm status ID`. Use the requested profile and the same `HARBORVM_HOME` as the desktop. If several profiles could match, resolve the target before changing one.
-- Start a stopped target with `harborvm start ID`, or resume a paused target with `harborvm resume ID`, when doing so is within the requested test. Wait for `state: running` and `guest_online: true`. Poll sequentially with a bounded wait; if readiness fails, inspect the error and setup logs instead of launching another VM.
-- `start` and `select` preserve the user's current app focus. Use `harborvm app` only when the user wants to bring the workspace window forward; it is not required for guest command tests.
+- Run `e2evm help`, `e2evm profile list`, then `e2evm status ID`. Use the requested profile and the same `E2EVM_HOME` as the desktop. If several profiles could match, resolve the target before changing one.
+- Start a stopped target with `e2evm start ID`, or resume a paused target with `e2evm resume ID`, when doing so is within the requested test. Wait for `state: running` and `guest_online: true`. Poll sequentially with a bounded wait; if readiness fails, inspect the error and setup logs instead of launching another VM.
+- `start` and `select` preserve the user's current app focus. Use `e2evm app` only when the user wants to bring the workspace window forward; it is not required for guest command tests.
 - This browser recipe targets the supplied Ubuntu Linux guest on an Apple Silicon Mac. Inspect the profile's `guest_os` and `setup` choices. macOS guest onboarding is separate and is not covered here; do not apply the Linux package, worker, or browser paths to it.
-- Guest readiness precedes browser setup. Check `harborvm exec ID -- test -f /var/lib/harborvm/setup-complete` and required tools. If first-boot setup is still running, let it finish before attempting another package installation.
+- Guest readiness precedes browser setup. Check `e2evm exec ID -- test -f /var/lib/harborvm/setup-complete` and required tools. If first-boot setup is still running, let it finish before attempting another package installation.
 
 ## Keep execution in the guest
 
-Use `harborvm exec ID -- PROGRAM ARG...` for argument-safe execution. For a shell pipeline or a working directory, use `harborvm run ID 'SHELL-LINE'`; keep guest substitutions inside single quotes so the host does not expand them.
+Use `e2evm exec ID -- PROGRAM ARG...` for argument-safe execution. For a shell pipeline or a working directory, use `e2evm run ID 'SHELL-LINE'`; keep guest substitutions inside single quotes so the host does not expand them.
 
 Commands run as guest user `harbor`, with home `/home/harbor` and initial directory `/home/harbor`. Use `/home/harbor/Workspace` for project work. The worker has no interactive stdin; pass a short script as an argument or save it in the guest first. One request is limited to 64 KiB and 60 seconds, and output to 256 KiB. Prefer sequential commands; a queued request can expire while another command runs.
 
@@ -25,7 +25,7 @@ The local repository and host `localhost` are **not** automatically available in
 
 ## Use the browser the task needs
 
-- For the visible persistent browser, use `harborvm exec ID -- harbor-browser URL`. Execute Python Playwright with `/home/harbor/Workspace/.venv/bin/python` and connect to `http://127.0.0.1:9222` **from inside the guest**. This reuses guest Chrome and its saved login state.
+- For the visible persistent browser, use `e2evm exec ID -- e2evm-browser URL`. Execute Python Playwright with `/home/harbor/Workspace/.venv/bin/python` and connect to `http://127.0.0.1:9222` **from inside the guest**. This reuses guest Chrome and its saved login state.
 - Open your own test tab, preserve unrelated tabs, and do not close the shared browser. A persistent profile may already contain accounts; use the test account and actions authorized for this task.
 - Use guest headless execution if requested or appropriate to the suite. The default installation supplies Python Playwright and Google Chrome; it does not guarantee Playwright's downloaded Chromium, Firefox, WebKit, or an npm Playwright dependency. Install only what the chosen suite requires.
 - Prefer semantic locators and assertions. For a visual-only control, the CLI also provides guest-scoped input and screenshots; inspect current help and the screenshot before choosing coordinates. Do not use global host input or open a host browser to get around a guest failure.

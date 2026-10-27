@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a reproducible problem with HarborVM
+about: Report a reproducible problem with E2EVM
 title: ""
 labels: ""
 assignees: ""
@@ -16,7 +16,7 @@ List the smallest steps using a disposable profile.
 
 ## Environment
 
-- HarborVM revision or version:
+- E2EVM revision or version:
 - macOS version and Apple Silicon model:
 - Guest state and configuration:
 - Assistant provider, if relevant (no keys):

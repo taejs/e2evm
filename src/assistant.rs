@@ -68,11 +68,11 @@ pub(crate) fn run_profile_with_limits(
     let program = resolve_program(profile.assistant_program.as_deref())?;
     let context = json!({"profile_id": profile.id, "profile_name": profile.name});
     let input = format!(
-        "You are the advisory assistant in HarborVM, a local virtual machine workspace. \
+        "You are the advisory assistant in E2EVM, a local virtual machine workspace. \
          Only this profile identity is supplied: {context}\n\
          No guest files, terminal output, clipboard, or credentials have been supplied. \
          Do not claim to inspect or operate this VM. Explain commands as suggestions for the user; \
-         your response is displayed as text and is never executed by HarborVM.\n\nUser request:\n{prompt}\n"
+         your response is displayed as text and is never executed by E2EVM.\n\nUser request:\n{prompt}\n"
     );
     let _signals = SignalGuard::install()?;
     let child = Command::new(&program)

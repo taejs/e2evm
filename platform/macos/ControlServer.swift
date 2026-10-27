@@ -5,7 +5,7 @@ final class ControlServer {
     private let socketFD: Int32
     private let lease: FileLease
     private let path: String
-    private let queue = DispatchQueue(label: "HarborVM.control", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "E2EVM.control", qos: .userInitiated)
     private weak var model: WorkspaceModel?
     init(root: String, model: WorkspaceModel) throws {
         try requirePrivateDirectory(root)

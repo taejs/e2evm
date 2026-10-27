@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HarborVM guest-only command worker. Never runs on the host."""
+"""E2EVM guest-only command worker. Never runs on the host."""
 import argparse
 import json
 import os

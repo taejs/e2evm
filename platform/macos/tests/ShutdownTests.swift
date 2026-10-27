@@ -7,7 +7,7 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate { var window: N
 @main
 struct ShutdownTests {
     static func main() throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("harborvm-shutdown-\(UUID().uuidString)")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("e2evm-shutdown-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let cli = root.appendingPathComponent("cli")

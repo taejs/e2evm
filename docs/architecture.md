@@ -1,6 +1,6 @@
 # Architecture
 
-HarborVM is a Rust application with a native macOS presentation and virtualization layer. Rust and Swift have separate responsibilities; using Rust does not replace Apple's hypervisor API.
+E2EVM is a Rust application with a native macOS presentation and virtualization layer. Rust and Swift have separate responsibilities; using Rust does not replace Apple's hypervisor API.
 
 ```mermaid
 flowchart LR
@@ -36,7 +36,7 @@ Closing the window retains running machines. Opening the workspace again reuses 
 
 ## Profiles and ownership
 
-The default root is `~/Library/Application Support/HarborVM`; `HARBORVM_HOME` selects a separate root. Profile directories contain configuration, disk and boot artifacts, the mailbox, and assistant working storage. The native app holds a process-wide lease, a per-profile lease, and a sidecar lease keyed by disk device/inode identity. The disk's own file is left to Virtualization.framework's image lock: holding a separate `flock` on it would prevent the framework storage service from opening it.
+The default root is `~/Library/Application Support/E2EVM`; `E2EVM_HOME` selects a separate root. Profile directories contain configuration, disk and boot artifacts, the mailbox, and assistant working storage. The native app holds a process-wide lease, a per-profile lease, and a sidecar lease keyed by disk device/inode identity. The disk's own file is left to Virtualization.framework's image lock: holding a separate `flock` on it would prevent the framework storage service from opening it.
 
 Profile IDs are restricted to lowercase letters, digits, and hyphens. Reads are bounded and mutable protocol paths reject symlinks. Guest request/reply operations pin directory descriptors so replacing an ancestor cannot redirect later operations to an arbitrary host location. These checks defend the protocol boundary; they are not a security boundary against other host processes with the same user's privileges.
 
@@ -55,7 +55,7 @@ The console is a command runner, not a PTY. It cannot interact with a password p
 
 ## Browser workstation
 
-First boot installs Openbox, LightDM, Chrome, Python, Node.js, and a Python Playwright environment. Chrome uses a guest-owned persistent profile and listens for debugging connections only on guest loopback. The host browser profile, cookies, and account sessions are not imported. Setup has a completion marker and a systemd retry path for interrupted installation.
+With the default Linux setup, first boot installs Openbox, LightDM, Chrome, Python, Node.js, and a Python Playwright environment. Chrome uses a guest-owned persistent profile and listens for debugging connections only on guest loopback. The host browser profile, cookies, and account sessions are not imported. Setup has a completion marker and a systemd retry path for interrupted installation.
 
 ## Assistant boundary
 
@@ -65,7 +65,7 @@ The assistant receives submitted conversation text and profile identity. It has 
 
 ## Platform scope
 
-The core's fixture tests run on Linux and macOS. The native backend and provisioning flow currently require Apple Silicon/macOS 14+. Supporting another host platform requires a VM backend and display/input integration; portable Rust code alone does not provide that support. Snapshotting, arbitrary disk import, remote machines, and macOS/Windows guests are outside this release.
+The core's fixture tests run on Linux and macOS. The native backend and provisioning flow currently require Apple Silicon/macOS 14+. Supporting another host platform requires a VM backend and display/input integration; portable Rust code alone does not provide that support. Linux and macOS guests are supported; macOS requires manual first-run setup and guest connection bootstrap. Snapshotting, arbitrary disk import, remote machines and Windows guests are outside this release.
 
 ## Guest operating systems and optional setup
 

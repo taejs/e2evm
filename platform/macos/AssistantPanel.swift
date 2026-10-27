@@ -183,7 +183,7 @@ struct AssistantSettings: View {
                         .font(.caption).foregroundStyle(.secondary)
                     TextField("Environment variable name, e.g. MY_PROVIDER_KEY", text: $keyEnvironment).textFieldStyle(.roundedBorder)
                         .accessibilityLabel("API key environment variable name")
-                    Text("Only the variable name is saved. The variable must be available to HarborVM when the app starts.")
+                    Text("Only the variable name is saved. The variable must be available to E2EVM when the app starts.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }

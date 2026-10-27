@@ -1,6 +1,6 @@
 # macOS guests
 
-HarborVM can prepare a fresh macOS VM using Apple's Virtualization framework and show its desktop in the workspace. Installation, Apple's first-run setup, and the guest command connection are separate steps. A visible macOS desktop does **not** mean `exec` is ready.
+E2EVM can prepare a fresh macOS VM using Apple's Virtualization framework and show its desktop in the workspace. Installation, Apple's first-run setup, and the guest command connection are separate steps. A visible macOS desktop does **not** mean `exec` is ready.
 
 This requires an Apple Silicon Mac running macOS 14 or later. Apple decides which restore images and virtual hardware configurations your Mac supports. The helper checks the selected image and validates the VM before installing. See Apple's [macOS VM documentation](https://developer.apple.com/documentation/virtualization/running-macos-in-a-virtual-machine-on-apple-silicon).
 
@@ -9,9 +9,9 @@ This requires an Apple Silicon Mac running macOS 14 or later. Apple decides whic
 Build the app using the [README](../README.md), then make its bundled CLI available in the host Terminal:
 
 ```sh
-export PATH="$PWD/dist/HarborVM.app/Contents/MacOS:$PATH"
-harborvm profile create macos --os macos --name "macOS testing"
-harborvm prepare macos
+export PATH="$PWD/dist/E2EVM.app/Contents/MacOS:$PATH"
+e2evm profile create macos --os macos --name "macOS testing"
+e2evm prepare macos
 ```
 
 The default macOS profile has 2 CPUs, 4096 MiB RAM, and a 64 GiB sparse disk. Use `--cpus`, `--memory`, and `--disk` at creation to request more resources. A newer restore image can require more than these defaults; preparation reports its minimums. A sparse disk grows as the guest writes data, so leave enough free host storage for the operating system, development tools, and projects.
@@ -21,24 +21,24 @@ Without an image argument, preparation asks Apple for the latest supported resto
 Alternatively, use an Apple IPSW already downloaded to this Mac. Supply an absolute path:
 
 ```sh
-harborvm prepare macos --restore-image /absolute/path/to/macOS.ipsw
+e2evm prepare macos --restore-image /absolute/path/to/macOS.ipsw
 ```
 
-Choose one preparation method for a new profile. This creates a fresh disk; it does not import another application's VM, accounts, or writable disk. After installation finishes, a durable journal records the prepared files before they move into place. If that final step is interrupted, rerun `harborvm prepare macos`: matching files resume without reinstalling macOS or requiring the original IPSW. An incomplete installation without that journal, changed files, or an unrelated existing disk is retained and refused. Inspect the error and `profiles/macos/preparing` under the data root; use a new profile ID for a fresh attempt rather than deleting a disk.
+Choose one preparation method for a new profile. This creates a fresh disk; it does not import another application's VM, accounts, or writable disk. After installation finishes, a durable journal records the prepared files before they move into place. If that final step is interrupted, rerun `e2evm prepare macos`: matching files resume without reinstalling macOS or requiring the original IPSW. An incomplete installation without that journal, changed files, or an unrelated existing disk is retained and refused. Inspect the error and `profiles/macos/preparing` under the data root; use a new profile ID for a fresh attempt rather than deleting a disk.
 
 ## Choose the optional tools
 
 All optional setup components are selected by default. The creation sheet lets you turn them off. The CLI supports comma-separated components:
 
 ```sh
-harborvm profile create macos-minimal --os macos --without all
-harborvm profile create macos-web --os macos --without node
+e2evm profile create macos-minimal --os macos --without all
+e2evm profile create macos-web --os macos --without node
 ```
 
 | Component | macOS behavior |
 | --- | --- |
 | Desktop | macOS already includes its desktop and Safari. Turning this setup option off does not remove Apple's bundled applications. |
-| Browser | Installs Chrome if needed and provides `harbor-browser`, with a separate persistent Chrome profile. |
+| Browser | Installs Chrome if needed and provides `e2evm-browser`, with a separate persistent Chrome profile. |
 | Python | Creates `~/Workspace/.venv` for development. The command connection still requires a Python runtime when this option is off. |
 | Node.js | Installs Node.js through an existing guest Homebrew installation if Node is absent. |
 | Playwright | Installs Python Playwright in the development environment. It uses the selected Chrome setup. |
@@ -50,17 +50,17 @@ Disabling desktop also disables the bundled browser and Playwright setup. Disabl
 From the host Terminal:
 
 ```sh
-harborvm app
-harborvm start macos
+e2evm app
+e2evm start macos
 ```
 
-Select the macOS machine in the workspace. Complete Apple's Setup Assistant inside that guest window, review its terms, and create your own guest account. HarborVM does not supply an account, accept Apple's terms for you, or copy your host credentials. Keep the guest signed in when using its graphical browser and command connection.
+Select the macOS machine in the workspace. Complete Apple's Setup Assistant inside that guest window, review its terms, and create your own guest account. E2EVM does not supply an account, accept Apple's terms for you, or copy your host credentials. Keep the guest signed in when using its graphical browser and command connection.
 
 At this point the VM can be running while `guest_online` remains false. That is expected until the next step succeeds.
 
 ## Connect the guest command tools
 
-The following steps run **inside the macOS guest's Terminal**, not in the host Terminal or HarborVM's command console. The console cannot run commands until this connection is installed.
+The following steps run **inside the macOS guest's Terminal**, not in the host Terminal or E2EVM's command console. The console cannot run commands until this connection is installed.
 
 The command worker needs Python 3.9 or later. The bootstrap reuses Python installed through Homebrew or the official Python installer. If Homebrew already exists but Python is missing, it installs Python as a core connection dependency. It deliberately avoids `/usr/bin/python3`, which can trigger Apple's developer-tools installation prompt.
 
@@ -78,12 +78,14 @@ If the kit is already mounted, skip the mount command. Run the setup script as y
 
 The bootstrap honors this profile's saved setup choices, installs the worker under your guest home, mounts the command mailbox at `/Volumes/HarborVM`, and starts a user LaunchAgent. A root LaunchDaemon remounts the two shared folders after reboot, using the account's recorded UID and GID. The kit remains read-only. The worker itself runs as your ordinary guest account and starts again when that account signs in.
 
+Shared-folder identifiers and guest data paths retain their stable internal names. Use the mount commands and paths exactly as shown.
+
 From the **host** Terminal, verify the connection:
 
 ```sh
-harborvm status macos
-harborvm exec macos -- uname -s
-harborvm exec macos -- whoami
+e2evm status macos
+e2evm exec macos -- uname -s
+e2evm exec macos -- whoami
 ```
 
 Expect `guest_online: true`, `Darwin`, and your guest account name. The command worker does not use the Linux guest's `harbor` account. See [usage](usage.md) for command timeouts, quoting, and output limits.
@@ -93,13 +95,13 @@ Expect `guest_online: true`, `Darwin`, and your guest account name. The command 
 If Browser and Playwright were selected, launch the guest's Chrome session from the host:
 
 ```sh
-harborvm exec macos -- harbor-browser https://example.com
-harborvm run macos 'cd ~/Workspace && .venv/bin/python -m playwright --version'
+e2evm exec macos -- e2evm-browser https://example.com
+e2evm run macos 'cd ~/Workspace && .venv/bin/python -m playwright --version'
 ```
 
 A Playwright script running **inside the guest** can connect to that browser at `http://127.0.0.1:9222`. This address refers to the guest, not the host. Keep the debugging port guest-local. Chrome's profile is stored at `~/Library/Application Support/HarborVM/Chrome` inside the VM and survives a normal guest restart.
 
-The guest must be signed in for its desktop browser. After reboot, launch `harbor-browser` again when needed; the worker restarts at login, but the bootstrap does not install a browser auto-launch agent. Safari is part of macOS, but this bootstrap's ready-to-use automation path is Chrome with Playwright.
+The guest must be signed in for its desktop browser. After reboot, launch `e2evm-browser` again when needed; the worker restarts at login, but the bootstrap does not install a browser auto-launch agent. Safari is part of macOS, but this bootstrap's ready-to-use automation path is Chrome with Playwright.
 
 ## Troubleshooting and recovery
 
@@ -113,7 +115,7 @@ The guest must be signed in for its desktop browser. After reboot, launch `harbo
 | Mailbox is mounted with another account's permissions | Close programs using `/Volumes/HarborVM`, then follow the bootstrap's unmount/remount instructions. It never forcibly replaces an existing mount. Use the account chosen for this guest connection. |
 | A tool was disabled | Install it inside the guest using its normal package manager, or create a new profile with the desired options. Disabled setup does not remove macOS's built-in desktop or Safari. |
 
-Use `harborvm stop macos` for a graceful shutdown. Wait until status reports stopped before backing up or moving a profile. Keep `disk.img`, `hardware-model.bin`, `machine-identifier.bin`, and `auxiliary-storage` together; the disk alone is not a complete macOS VM. Do not open a writable disk in two VM applications at once.
+Use `e2evm stop macos` for a graceful shutdown. Wait until status reports stopped before backing up or moving a profile. Keep `disk.img`, `hardware-model.bin`, `machine-identifier.bin`, and `auxiliary-storage` together; the disk alone is not a complete macOS VM. Do not open a writable disk in two VM applications at once.
 
 Actual installation and runtime verification are recorded separately in [validation](validation.md). A successful build or configuration check alone is not evidence that macOS setup, login, and guest commands have all completed.
 

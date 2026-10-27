@@ -54,7 +54,7 @@ struct WorkspaceView: View {
             HStack(spacing: 10) {
                 Image(systemName: "square.stack.3d.up.fill").font(.system(size: 21)).foregroundStyle(HarborTheme.accent)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("HarborVM").font(.system(size: 16, weight: .semibold))
+                    Text("E2EVM").font(.system(size: 16, weight: .semibold))
                     Text("LOCAL WORKSPACE").font(.system(size: 9, weight: .medium)).tracking(1.5).foregroundStyle(HarborTheme.muted)
                 }
             }.padding(.horizontal, 20).padding(.top, 25).padding(.bottom, 32)

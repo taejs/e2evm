@@ -1,4 +1,4 @@
-use harborvm::{
+use e2evm::{
     assistant::{self, RunLimits},
     profile::{Profile, Store},
 };
@@ -29,9 +29,9 @@ impl Fixture {
         let mut command = Command::new(std::env::current_exe().unwrap());
         command
             .args(["--exact", "assistant_subprocess", "--nocapture"])
-            .env("HARBORVM_ASSISTANT_TEST_ROOT", &self.store.root)
+            .env("E2EVM_ASSISTANT_TEST_ROOT", &self.store.root)
             .env(
-                "HARBORVM_ASSISTANT_TEST_PROMPT",
+                "E2EVM_ASSISTANT_TEST_PROMPT",
                 "Explain $(touch INJECTED); `touch INJECTED` & < > ' \" 한글",
             )
             .stdout(Stdio::piped())
@@ -46,18 +46,18 @@ impl Fixture {
 // A separate process exercises signal handling without changing the test harness's signals.
 #[test]
 fn assistant_subprocess() {
-    let Some(root) = std::env::var_os("HARBORVM_ASSISTANT_TEST_ROOT") else {
+    let Some(root) = std::env::var_os("E2EVM_ASSISTANT_TEST_ROOT") else {
         return;
     };
     let store = Store::open(root.into()).unwrap();
     let limits = RunLimits {
         timeout: Duration::from_millis(
-            std::env::var("HARBORVM_ASSISTANT_TEST_TIMEOUT")
+            std::env::var("E2EVM_ASSISTANT_TEST_TIMEOUT")
                 .unwrap_or("3000".into())
                 .parse()
                 .unwrap(),
         ),
-        max_output_bytes: std::env::var("HARBORVM_ASSISTANT_TEST_CAP")
+        max_output_bytes: std::env::var("E2EVM_ASSISTANT_TEST_CAP")
             .unwrap_or("65536".into())
             .parse()
             .unwrap(),
@@ -65,7 +65,7 @@ fn assistant_subprocess() {
     if let Err(error) = assistant::run_with_limits(
         &store,
         "test-vm",
-        &std::env::var("HARBORVM_ASSISTANT_TEST_PROMPT").unwrap(),
+        &std::env::var("E2EVM_ASSISTANT_TEST_PROMPT").unwrap(),
         limits,
     ) {
         eprintln!("{error:#}");
@@ -143,7 +143,7 @@ fn assistant_bounds_output_and_time() {
     let fixture = Fixture::new("cat >/dev/null\nwhile :; do printf '0123456789abcdef'; done");
     let output = fixture
         .command()
-        .env("HARBORVM_ASSISTANT_TEST_CAP", "128")
+        .env("E2EVM_ASSISTANT_TEST_CAP", "128")
         .output()
         .unwrap();
     assert!(!output.status.success());
@@ -151,7 +151,7 @@ fn assistant_bounds_output_and_time() {
     let fixture = Fixture::new("cat >/dev/null\nwhile :; do printf '0123456789abcdef' >&2; done");
     let output = fixture
         .command()
-        .env("HARBORVM_ASSISTANT_TEST_CAP", "128")
+        .env("E2EVM_ASSISTANT_TEST_CAP", "128")
         .output()
         .unwrap();
     assert!(!output.status.success());
@@ -160,7 +160,7 @@ fn assistant_bounds_output_and_time() {
     let start = Instant::now();
     let output = fixture
         .command()
-        .env("HARBORVM_ASSISTANT_TEST_TIMEOUT", "100")
+        .env("E2EVM_ASSISTANT_TEST_TIMEOUT", "100")
         .output()
         .unwrap();
     assert!(!output.status.success());

@@ -1,6 +1,6 @@
 # Community conduct
 
-HarborVM welcomes people with different backgrounds, experience levels, and perspectives. Treat contributors and users with respect.
+E2EVM welcomes people with different backgrounds, experience levels, and perspectives. Treat contributors and users with respect.
 
 - Discuss ideas and code without personal attacks.
 - Explain disagreements with concrete examples and allow others time to respond.

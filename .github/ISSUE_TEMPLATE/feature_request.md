@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Explain a workflow HarborVM could support
+about: Explain a workflow E2EVM could support
 title: ""
 labels: ""
 assignees: ""

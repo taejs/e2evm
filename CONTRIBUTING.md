@@ -1,4 +1,4 @@
-# Contributing to HarborVM
+# Contributing to E2EVM
 
 Bug reports, documentation improvements, accessibility fixes, and focused code changes are welcome. Please read the [code of conduct](CODE_OF_CONDUCT.md) and [architecture](docs/architecture.md) first. Discuss a new platform backend or a major workflow change in an issue before building it.
 
@@ -9,12 +9,12 @@ Follow the [README](README.md) to build the native app. The Rust core and fixtur
 Use a separate runtime for experiments:
 
 ```sh
-export HARBORVM_HOME="$PWD/.runtime"
+export E2EVM_HOME="$PWD/.runtime"
 cargo build --locked
 cargo run -- profile create dev --name "Development VM"
 sh scripts/build-macos.sh
-./target/debug/harborvm prepare dev
-./target/debug/harborvm start dev
+./target/debug/e2evm prepare dev
+./target/debug/e2evm start dev
 ```
 
 Do not point development tests at an existing machine's disk or reuse someone else's runtime. Shut down test guests and wait for the stopped state before rebuilding or replacing their native app. Keep runtime directories, browser data, API keys, assistant transcripts, and private screenshots out of commits. `.runtime`, `target`, and `dist` are ignored.
@@ -30,7 +30,7 @@ python3 tests/guest_worker.py
 # On Apple Silicon macOS:
 sh platform/macos/tests/run.sh
 sh scripts/build-macos.sh
-codesign --verify --strict dist/HarborVM.app
+codesign --verify --strict dist/E2EVM.app
 ```
 
 Rust tests use temporary profiles, executable fixtures, and loopback HTTP servers. They do not call a paid model service or require a real Codex/Ollama account. The Python tests exercise the guest worker using local fixtures. Do not run `guest/setup.sh` on your development host: it is a Linux guest provisioning script that changes system services and installs packages.

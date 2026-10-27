@@ -286,7 +286,7 @@ final class WorkspaceModel: ObservableObject {
         guard jobs[key] == nil else { completion(.failure(HarborError("This operation is already running."))); return }
         let job = CLIJob(), stdout = Pipe(), stderr = Pipe()
         job.process.executableURL = URL(fileURLWithPath: cli); job.process.arguments = arguments
-        var environment = ProcessInfo.processInfo.environment; environment["HARBORVM_HOME"] = root
+        var environment = ProcessInfo.processInfo.environment; environment["E2EVM_HOME"] = root; environment["HARBORVM_HOME"] = root
         job.process.environment = environment
         let stdin = input == nil ? nil : Pipe()
         job.process.standardInput = stdin ?? FileHandle.nullDevice as Any
@@ -347,7 +347,7 @@ final class WorkspaceModel: ObservableObject {
         process.executableURL = URL(fileURLWithPath: cli)
         process.arguments = arguments
         var environment = ProcessInfo.processInfo.environment
-        environment["HARBORVM_HOME"] = root
+        environment["E2EVM_HOME"] = root; environment["HARBORVM_HOME"] = root
         process.environment = environment
         let output = Pipe(), errors = Pipe()
         process.standardOutput = output; process.standardError = errors

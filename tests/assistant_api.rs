@@ -1,4 +1,4 @@
-use harborvm::profile::{Profile, Store};
+use e2evm::profile::{Profile, Store};
 use serde_json::{Value, json};
 use std::{
     io::{Read, Write},
@@ -23,9 +23,9 @@ impl Fixture {
         Self { _temp: temp, store }
     }
     fn command(&self, args: &[&str]) -> Command {
-        let mut c = Command::new(env!("CARGO_BIN_EXE_harborvm"));
+        let mut c = Command::new(env!("CARGO_BIN_EXE_e2evm"));
         c.args(args)
-            .env("HARBORVM_HOME", &self.store.root)
+            .env("E2EVM_HOME", &self.store.root)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -361,14 +361,14 @@ fn redirects_are_not_followed_and_keys_use_named_environment_only() {
             "--endpoint",
             &url,
             "--key-env",
-            "HARBORVM_FIXTURE_TOKEN",
+            "E2EVM_FIXTURE_TOKEN",
         ])
         .output()
         .unwrap();
     assert!(o.status.success());
     let o = f
         .command(&["assistant", "models", "test"])
-        .env("HARBORVM_FIXTURE_TOKEN", "named-env-token")
+        .env("E2EVM_FIXTURE_TOKEN", "named-env-token")
         .output()
         .unwrap();
     assert!(o.status.success());
@@ -381,7 +381,7 @@ fn redirects_are_not_followed_and_keys_use_named_environment_only() {
     h.join().unwrap();
     let o = f
         .command(&["assistant", "models", "test"])
-        .env_remove("HARBORVM_FIXTURE_TOKEN")
+        .env_remove("E2EVM_FIXTURE_TOKEN")
         .output()
         .unwrap();
     assert!(!o.status.success());

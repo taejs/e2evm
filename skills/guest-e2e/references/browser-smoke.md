@@ -1,9 +1,9 @@
 # Assert a page in the guest browser
 
-Run these snippets in the **host terminal**, with the bundled `harborvm` CLI on `PATH`. Replace profile `e2e` with the selected guest, which must have completed browser setup. The default local HTML fixture verifies the browser connection, assertions, and evidence transfer without depending on a public website. To test an application, replace its URL, title, and heading with the requested target; passing this fixture does not test that application or network access.
+Run these snippets in the **host terminal**, with the bundled `e2evm` CLI on `PATH`. Replace profile `e2e` with the selected guest, which must have completed browser setup. The default local HTML fixture verifies the browser connection, assertions, and evidence transfer without depending on a public website. To test an application, replace its URL, title, and heading with the requested target; passing this fixture does not test that application or network access.
 
 ```sh
-harborvm exec e2e -- harbor-browser
+e2evm exec e2e -- e2evm-browser
 ```
 
 Chrome may take a moment to expose its debugging endpoint. If connection is refused, check guest setup and browser logs, then retry the connection within a bounded wait. Do not launch a second browser profile to conceal a startup failure.
@@ -45,7 +45,7 @@ with sync_playwright() as p:
 '''
 
 result = subprocess.run(
-    ["harborvm", "exec", profile, "--",
+    ["e2evm", "exec", profile, "--",
      "/home/harbor/Workspace/.venv/bin/python", "-c", guest_script,
      url, expected_title, expected_heading],
     capture_output=True, text=True,
@@ -70,9 +70,9 @@ Attaching over CDP reuses Chrome's default context. It has fewer guarantees than
 For a native view capture, select the running guest while the desired page is visible and choose a **new** filename:
 
 ```sh
-harborvm select e2e
-harborvm screenshot e2e e2e-guest.png
-harborvm screenshot e2e e2e-workspace.png --app
+e2evm select e2e
+e2evm screenshot e2e e2e-guest.png
+e2evm screenshot e2e e2e-workspace.png --app
 ```
 
 These paths are on the host. Inspect native captures for missing or blank content; a capture error or incomplete render is not proof of application behavior. A path passed to Playwright's `page.screenshot(path=...)` instead lives inside the guest unless it is explicitly transferred.

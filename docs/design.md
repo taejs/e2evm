@@ -13,7 +13,7 @@ Two open-source projects informed the workspace concept:
 - [edvin/orca](https://github.com/edvin/orca): a Rust/Tauri container desktop, useful as a reference for a machine/resource workspace.
 - [andrewmcoupe/orca](https://github.com/andrewmcoupe/orca): a local AI coding workspace, useful as a reference for conversation beside active work.
 
-These projects are references, not dependencies or endorsements. HarborVM uses a native VM display and its own interaction model. [Ollama's API documentation](https://docs.ollama.com/api) informed the connection settings and streaming adapter; HarborVM does not embed or redistribute Ollama's UI.
+These projects are references, not dependencies or endorsements. E2EVM uses a native VM display and its own interaction model. [Ollama's API documentation](https://docs.ollama.com/api) informed the connection settings and streaming adapter; E2EVM does not embed or redistribute Ollama's UI.
 
 ## Interaction rules
 

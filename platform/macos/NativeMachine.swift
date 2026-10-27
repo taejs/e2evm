@@ -104,7 +104,7 @@ final class NativeMachine: NSObject, VZVirtualMachineDelegate {
             guard let resources = Bundle.main.resourceURL else { throw HarborError("Packaged guest kit is missing") }
             kitURL = resources.appendingPathComponent("guest")
         }
-        guard FileManager.default.fileExists(atPath: kitURL.appendingPathComponent("worker.py").path) else { throw HarborError("Packaged guest kit is missing; rebuild HarborVM.app") }
+        guard FileManager.default.fileExists(atPath: kitURL.appendingPathComponent("worker.py").path) else { throw HarborError("Packaged guest kit is missing; rebuild E2EVM.app") }
         kit.share = VZSingleDirectoryShare(directory: VZSharedDirectory(url: kitURL, readOnly: true))
         config.directorySharingDevices = [mailbox, kit]
         let serialFD = open(directory + "/serial.log", O_WRONLY | O_CREAT | O_APPEND | O_NOFOLLOW | O_CLOEXEC, 0o600)

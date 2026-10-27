@@ -140,11 +140,13 @@ impl Store {
         Ok(Self { root })
     }
     pub fn default_root() -> Result<PathBuf> {
-        if let Some(value) = std::env::var_os("HARBORVM_HOME") {
+        if let Some(value) =
+            std::env::var_os("E2EVM_HOME").or_else(|| std::env::var_os("HARBORVM_HOME"))
+        {
             return Ok(value.into());
         }
-        let home = std::env::var_os("HOME").context("HOME is not set; provide HARBORVM_HOME")?;
-        Ok(PathBuf::from(home).join("Library/Application Support/HarborVM"))
+        let home = std::env::var_os("HOME").context("HOME is not set; provide E2EVM_HOME")?;
+        Ok(PathBuf::from(home).join("Library/Application Support/E2EVM"))
     }
     pub fn dir(&self, id: &str) -> Result<PathBuf> {
         validate_id(id)?;

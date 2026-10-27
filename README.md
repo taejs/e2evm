@@ -1,4 +1,4 @@
-# HarborVM
+# E2EVM
 
 Let your agent test. Keep your desktop.
 
@@ -6,7 +6,7 @@ A local VM workspace for agent-driven browser testing on Apple Silicon, with a R
 
 Keep a real VM desktop, guest command console, and AI conversation in one native Mac window. Linux machines can install a desktop, Chrome, Python tools, Node.js, and Playwright on first boot. Every optional component starts selected and can be turned off. Choose an existing Codex CLI, an Ollama server, or an OpenAI-compatible chat API in the right panel.
 
-![HarborVM workspace with a live Linux browser, guest console, and assistant panel](docs/images/workspace.png)
+![E2EVM workspace with a live Linux browser, guest console, and assistant panel](docs/images/workspace.png)
 
 ## What you can do
 
@@ -23,29 +23,29 @@ The native shell uses SwiftUI, AppKit, and Apple's Virtualization framework. Rus
 Install [Rust](https://www.rust-lang.org/tools/install) stable (1.85 or newer), [Xcode Command Line Tools](https://developer.apple.com/xcode/resources/), and [Node.js](https://nodejs.org/en/download) 22.15 or newer on the Mac. Node is used to decompress the Ubuntu boot kernel. Python 3 is needed for contributor tests. Preparation and first boot need internet access and room for a 24 GiB sparse disk, downloaded images, and build output. The sparse disk grows as the guest writes data.
 
 ```sh
-git clone https://github.com/taejs/harborvm.git
-cd harborvm
+git clone https://github.com/taejs/e2evm.git
+cd e2evm
 sh scripts/build-macos.sh
-export PATH="$PWD/dist/HarborVM.app/Contents/MacOS:$PATH"
+export PATH="$PWD/dist/E2EVM.app/Contents/MacOS:$PATH"
 
-harborvm profile create ubuntu --name "Ubuntu Workspace"
-harborvm prepare ubuntu
-harborvm start ubuntu
-harborvm app
+e2evm profile create ubuntu --name "Ubuntu Workspace"
+e2evm prepare ubuntu
+e2evm start ubuntu
+e2evm app
 ```
 
 The default machine has 2 CPUs, 2 GiB memory, and a 24 GiB disk. First boot installs the desktop and browser tools, which can take several minutes. The command worker can become available before the desktop finishes. Chrome opens the included welcome page when setup completes. The desktop's **New machine** and **Prepare Linux** controls provide the same workflow.
 
 ```sh
-harborvm exec ubuntu -- harbor-browser https://example.com
-harborvm exec ubuntu -- python3 --version
-harborvm run ubuntu 'cd ~/Workspace && .venv/bin/python -m playwright --version'
-harborvm pause ubuntu
-harborvm resume ubuntu
-harborvm stop ubuntu
+e2evm exec ubuntu -- e2evm-browser https://example.com
+e2evm exec ubuntu -- python3 --version
+e2evm run ubuntu 'cd ~/Workspace && .venv/bin/python -m playwright --version'
+e2evm pause ubuntu
+e2evm resume ubuntu
+e2evm stop ubuntu
 ```
 
-`start` launches the workspace in the background so an agent does not take focus from your current app. `app` brings the window forward when you want to inspect it. `stop` requests a clean shutdown; check `harborvm status ubuntu` until the machine is stopped. Closing the window keeps guests running. Reopen it with `harborvm app`. Quitting is refused while a machine is active.
+`start` launches the workspace in the background so an agent does not take focus from your current app. `app` brings the window forward when you want to inspect it. `stop` requests a clean shutdown; check `e2evm status ubuntu` until the machine is stopped. Closing the window keeps guests running. Reopen it with `e2evm app`. Quitting is refused while a machine is active.
 
 ## Give an E2E agent its own workspace
 
@@ -57,13 +57,13 @@ For a minimal Linux machine, use `--without all`. To omit selected tools, use `-
 
 ## Connect an assistant
 
-Codex is the default and uses your installed CLI and its existing sign-in. HarborVM does not install or authenticate it. Select a different connection in the assistant's settings, or configure one from the terminal:
+Codex is the default and uses your installed CLI and its existing sign-in. E2EVM does not install or authenticate it. Select a different connection in the assistant's settings, or configure one from the terminal:
 
 ```sh
-harborvm profile connection ubuntu ollama --endpoint http://127.0.0.1:11434
-harborvm assistant models ubuntu
-harborvm profile connection ubuntu ollama --endpoint http://127.0.0.1:11434 --model YOUR_MODEL_ID
-harborvm chat ubuntu 'How can I check the Python version in my guest?'
+e2evm profile connection ubuntu ollama --endpoint http://127.0.0.1:11434
+e2evm assistant models ubuntu
+e2evm profile connection ubuntu ollama --endpoint http://127.0.0.1:11434 --model YOUR_MODEL_ID
+e2evm chat ubuntu 'How can I check the Python version in my guest?'
 ```
 
 Ollama must already be running with a model installed. For compatible services, configure the service's base URL and model; the desktop accepts an optional API key held only in memory for the app session. See [assistant connections](docs/assistant.md) for Codex setup, OpenAI-compatible examples, supported protocols, privacy, and cancellation.
@@ -82,4 +82,4 @@ Assistant replies are suggestions. They do not run guest commands. Conversations
 
 The console runs individual commands, not an interactive terminal. Windows guests, snapshots, disk import, automatic assistant actions, and cross-platform host backends are not implemented. Native screenshot capture has platform rendering limits; see the validation record before relying on it for automation.
 
-HarborVM source is [MIT licensed](LICENSE). Ubuntu, Chrome, Apple frameworks, and other dependencies have their own licenses; see [dependencies](docs/dependencies.md). Chrome is downloaded separately into the guest during setup and is not covered by HarborVM's MIT license.
+E2EVM source is [MIT licensed](LICENSE). Ubuntu, Chrome, Apple frameworks, and other dependencies have their own licenses; see [dependencies](docs/dependencies.md). Chrome is downloaded separately into the guest during setup and is not covered by E2EVM's MIT license.

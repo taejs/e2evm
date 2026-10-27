@@ -74,6 +74,11 @@ nohup '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' \
   </dev/null >"$HOME/Library/Application Support/HarborVM/browser.log" 2>&1 &
 BROWSER
   chmod 755 "$HOME/.local/bin/harbor-browser"
+  cat > "$HOME/.local/bin/e2evm-browser" <<'BROWSER_ALIAS'
+#!/bin/sh
+exec "$HOME/.local/bin/harbor-browser" "$@"
+BROWSER_ALIAS
+  chmod 755 "$HOME/.local/bin/e2evm-browser"
 fi
 TASK_TEMP=$(mktemp -d)
 trap 'rm -rf "$TASK_TEMP"' EXIT HUP INT TERM
@@ -123,6 +128,6 @@ sudo launchctl bootstrap system /Library/LaunchDaemons/io.github.taejs.harborvm.
 install -m 600 "$TASK_TEMP/worker.plist" "$HOME/Library/LaunchAgents/io.github.taejs.harborvm.worker.plist"
 launchctl bootout "gui/$(id -u)/io.github.taejs.harborvm.worker" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/io.github.taejs.harborvm.worker.plist"
-if [ "$SETUP_BROWSER" = 1 ]; then "$HOME/.local/bin/harbor-browser"; fi
+if [ "$SETUP_BROWSER" = 1 ]; then "$HOME/.local/bin/e2evm-browser"; fi
 printf 'Guest connection installed for %s. It starts when you sign in to this guest.\n' "$(id -un)"
 printf 'macOS includes its own desktop; optional browser and development tools follow this profile’s selections.\n'

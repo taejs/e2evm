@@ -5,7 +5,7 @@ Recorded on 2026-10-27 on Apple Silicon. This is functional verification of the 
 ## Automated checks
 
 - Rust formatting and all-target Clippy with warnings denied passed.
-- 30 Rust tests passed: 9 preparation recovery cases, 6 local-assistant cases, 9 HTTP-provider cases, 6 profile/filesystem cases.
+- 33 Rust tests passed: 9 preparation recovery cases, 6 local-assistant cases, 9 HTTP-provider cases, 6 profile/filesystem cases and 3 branding/environment cases.
 - 6 guest-worker tests passed, including a child that closes output but continues running past its deadline and a detached child retaining stdout. The detached-output regression failed before the fix at 4.041 seconds for a 1-second limit, then passed with a bounded drain and successful following command.
 - Native ownership, safe paths, lifecycle transitions and keyboard mapping checks passed. The shutdown harness rejected new socket/UI work while an existing job completed cancellation; removing the admission guards reproduced the regression.
 - Preparation recovery tests cover 18 injected interruption boundaries across Linux and macOS, metadata lock contention, foreign destinations, symlinks, changed files and incomplete installs without a journal.
@@ -48,4 +48,4 @@ Public screenshots and recordings use disposable test state. No existing product
 
 ## Release review
 
-Review `20261027-release-6ac815b0` covered correctness, tests, maintainability, agent integration, security, API contracts, reliability, Swift and adversarial cases. Five validated findings were fixed and received focused follow-up inspection. A different-provider review CLI was unavailable, so the adversarial pass used the available agent route. Hosted CI and final public release identity are still pending.
+Review `20261027-release-6ac815b0` covered correctness, tests, maintainability, agent integration, security, API contracts, reliability, Swift and adversarial cases. Five validated findings were fixed and received focused follow-up inspection. A different-provider review CLI was unavailable, so the adversarial pass used the available agent route. E2EVM is the selected public identity. Its rename received focused compatibility review; the signed app opened the existing development guest and executed a command successfully. Hosted CI remains pending publication.

@@ -1,12 +1,12 @@
 ---
-title: HarborVM Workspace - Plan
+title: E2EVM Workspace - Plan
 type: feat
 date: 2026-10-26
 artifact_contract: ce-unified-plan/v1
 product_contract_source: ce-plan-bootstrap
 execution: code
 ---
-# HarborVM Workspace - Plan
+# E2EVM Workspace - Plan
 
 ## Goal Capsule
 
@@ -16,7 +16,7 @@ Build a usable Rust-centered VM workspace for Apple Silicon with a native guest 
 
 ### Summary
 
-HarborVM combines a machine library, live VM display, guest command console, and assistant in one desktop window. The Rust CLI exposes the same operations for automation. A small macOS bridge owns Apple framework objects; Rust owns durable profiles, provisioning, command transport, and assistant execution.
+E2EVM combines a machine library, live VM display, guest command console, and assistant in one desktop window. The Rust CLI exposes the same operations for automation. A small macOS bridge owns Apple framework objects; Rust owns durable profiles, provisioning, command transport, and assistant execution.
 
 ### Problem Frame
 
@@ -45,7 +45,7 @@ The release runs Linux and macOS guests on Apple Silicon/macOS 14+. macOS guest 
 
 ### Assumptions
 
-HarborVM is a temporary implementation name. The user rejected it for launch and is choosing a Test-prefixed name; do not publish a repository or final branding until that choice is settled. Orca means the open-source edvin/orca container desktop for visual inspiration; this is an assumption, not an identity claim. Use original layouts/assets, with references documented. Both edvin/orca and andrewmcoupe/orca are verified MIT references; no code or assets are copied. A fresh tiny test guest can use cached public Ubuntu downloads and at most 2 GB RAM; no production disk clone is needed.
+The user selected E2EVM as the final product, app and public repository name on 2026-10-27. The earlier implementation name was HarborVM. Preserve existing private VM data and stable guest protocol tags when renaming the public app and CLI. Orca means the open-source edvin/orca container desktop for visual inspiration; this is an assumption, not an identity claim. Use original layouts/assets, with references documented. Both edvin/orca and andrewmcoupe/orca are verified MIT references; no code or assets are copied. A fresh tiny test guest can use cached public Ubuntu downloads and at most 2 GB RAM; no production disk clone is needed.
 
 ## Planning Contract
 
@@ -191,3 +191,9 @@ All six units work and are committed in reviewable increments. The actual guest 
 - OpenCut Classic project creation/rename validation passed 12 assertions, including persistence after reload; two repeat runs and an actual native recording passed. The 42-second English motion/recording edit is complete with a temporary in-app name; final naming/publication remains pending.
 - Starting and selecting a validation VM preserved the foreground host app, pointer coordinates and clipboard change count.
 - Release review `20261027-release-6ac815b0` completed all nine selected lenses and independently validated five findings. Follow-up fixes cover recoverable artifact promotion, serialized metadata field updates, connection-bound credentials/history, bounded output draining and shutdown admission. Targeted regression evidence belongs in `docs/validation.md`.
+
+### Final launch direction — 2026-10-27
+
+- Product identity is E2EVM, CLI/repository `e2evm`; publication to `taejs/e2evm` remains authorized, with no PR merge.
+- The user rejected the 42-second evidence-first video as dry. Replace it with a fast developer launch story: focus-stealing browser annoyance, satisfying separation into E2EVM, genuine agent/E2E footage and continued host work. Keep 30–45 seconds and English captions; Astra owns the new motion edit. The earlier cut is archived source material, not an approved launch asset.
+- Rename visible branding, install paths and documentation together; accept the earlier environment variables and retain stable guest mount tags/services/browser data paths so existing profiles continue to work.

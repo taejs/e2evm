@@ -5,9 +5,9 @@ Append the following to your application's `AGENTS.md` or `CLAUDE.md`. Replace t
 ```markdown
 ## Browser E2E workspace
 
-For this project's browser E2E tasks, use HarborVM profile `e2e`.
+For this project's browser E2E tasks, use E2EVM profile `e2e`.
 Read `/absolute/path/to/skills/guest-e2e/SKILL.md` and the linked reference relevant to the task.
-Invoke the installed `harborvm` CLI from the host; run browsers, test scripts,
+Invoke the installed `e2evm` CLI from the host; run browsers, test scripts,
 development servers, and missing project dependencies inside this guest.
 
 Verify the target URL and source revision before testing. Host localhost and
@@ -21,4 +21,4 @@ and accounts authorized for the task. Existing project test commands and
 dependency versions still apply.
 ```
 
-If the agent uses a nondefault `HARBORVM_HOME`, add that exact local directory to your private project instructions. Do not publish personal paths, credentials, or session data in a public repository.
+If the agent uses a nondefault `E2EVM_HOME`, add that exact local directory to your private project instructions. Do not publish personal paths, credentials, or session data in a public repository.

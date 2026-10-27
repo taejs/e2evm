@@ -14,18 +14,18 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
                 guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
                 return arguments[index + 1]
             }
-            let root = value("--home") ?? ProcessInfo.processInfo.environment["HARBORVM_HOME"] ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/HarborVM").path
-            let cli = value("--cli") ?? Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/harborvm").path
+            let root = value("--home") ?? ProcessInfo.processInfo.environment["E2EVM_HOME"] ?? ProcessInfo.processInfo.environment["HARBORVM_HOME"] ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/E2EVM").path
+            let cli = value("--cli") ?? Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/e2evm").path
             // Rust owns directory creation and durable profile validation.
             let setup = Process(); setup.executableURL = URL(fileURLWithPath: cli); setup.arguments = ["profile", "list"]
-            var environment = ProcessInfo.processInfo.environment; environment["HARBORVM_HOME"] = root; setup.environment = environment
+            var environment = ProcessInfo.processInfo.environment; environment["E2EVM_HOME"] = root; environment["HARBORVM_HOME"] = root; setup.environment = environment
             setup.standardOutput = FileHandle.nullDevice
             try setup.run(); setup.waitUntilExit()
             guard setup.terminationStatus == 0 else { throw HarborError("Cannot initialize the profile store") }
             model = WorkspaceModel(root: root, cli: cli)
             server = try ControlServer(root: root, model: model)
             window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 920), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-            window.title = "HarborVM"; window.delegate = self; window.isReleasedWhenClosed = false
+            window.title = "E2EVM"; window.delegate = self; window.isReleasedWhenClosed = false
             window.minSize = NSSize(width: 1120, height: 762)
             window.titlebarAppearsTransparent = true
             window.backgroundColor = NSColor(red: 0.065, green: 0.073, blue: 0.080, alpha: 1)
@@ -37,7 +37,7 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             server?.start()
             if !arguments.contains("--background") { NSApp.activate(ignoringOtherApps: true) }
         } catch {
-            fputs("HarborVM: \(error.localizedDescription)\n", stderr)
+            fputs("E2EVM: \(error.localizedDescription)\n", stderr)
             NSApp.terminate(nil)
         }
     }
@@ -48,10 +48,10 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             let submenu = NSMenu(title: title); item.submenu = submenu; menu.addItem(item)
             return submenu
         }
-        let application = addMenu("HarborVM")
-        application.addItem(withTitle: "Hide HarborVM", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        let application = addMenu("E2EVM")
+        application.addItem(withTitle: "Hide E2EVM", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         application.addItem(.separator())
-        application.addItem(withTitle: "Quit HarborVM", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        application.addItem(withTitle: "Quit E2EVM", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         let edit = addMenu("Edit")
         edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
         let redo = edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
@@ -73,8 +73,8 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         guard let model else { return .terminateNow }
         if model.hasActiveMachines || model.preparing || model.creating {
             model.errorMessage = model.hasActiveMachines
-                ? "Shut down or force stop your active machines before quitting HarborVM."
-                : "Let machine preparation or profile creation finish before quitting HarborVM."
+                ? "Shut down or force stop your active machines before quitting E2EVM."
+                : "Let machine preparation or profile creation finish before quitting E2EVM."
             window.makeKeyAndOrderFront(nil)
             return .terminateCancel
         }
@@ -94,7 +94,7 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 }
 
 @main
-struct HarborVMApplication {
+struct E2EVMApplication {
     static func main() {
         if MacOSProvisioner.runIfRequested(arguments: CommandLine.arguments) {
             RunLoop.main.run()

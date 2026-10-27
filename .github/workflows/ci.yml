@@ -58,5 +58,5 @@ jobs:
         run: sh scripts/build-macos.sh
       - name: Verify app signature and entitlement
         run: |
-          codesign --verify --strict dist/HarborVM.app
-          codesign --display --entitlements - dist/HarborVM.app
+          codesign --verify --strict dist/E2EVM.app
+          codesign --display --entitlements - dist/E2EVM.app

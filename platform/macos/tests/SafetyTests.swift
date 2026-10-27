@@ -16,7 +16,7 @@ struct SafetyTests {
         assert(punctuation.0 == 18 && punctuation.2.contains(.shift))
         try expectFailure("unknown modifier") { _ = try GuestKeyboard.named("super+enter") }
         try expectFailure("non-ASCII scan code") { _ = try GuestKeyboard.character("한") }
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("harborvm-lock-tests-\(UUID().uuidString)")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("e2evm-lock-tests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: root) }
         try requirePrivateDirectory(root.path)

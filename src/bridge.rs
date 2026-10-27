@@ -23,7 +23,7 @@ pub fn request(store: &Store, id: &str, action: &str, payload: Value) -> Result<
     {
         let path = store.root.join("control.sock");
         let metadata =
-            fs::symlink_metadata(&path).context("Workspace is not running; run harborvm app")?;
+            fs::symlink_metadata(&path).context("Workspace is not running; run e2evm app")?;
         if !metadata.file_type().is_socket()
             || metadata.uid() != unsafe { libc::geteuid() }
             || metadata.mode() & 0o077 != 0
@@ -31,7 +31,7 @@ pub fn request(store: &Store, id: &str, action: &str, payload: Value) -> Result<
             bail!("Unsafe workspace control socket");
         }
         let mut socket =
-            UnixStream::connect(path).context("Cannot connect to workspace; run harborvm app")?;
+            UnixStream::connect(path).context("Cannot connect to workspace; run e2evm app")?;
         socket.set_read_timeout(Some(Duration::from_secs(120)))?;
         socket.set_write_timeout(Some(Duration::from_secs(10)))?;
         let request_id = format!(
@@ -76,27 +76,40 @@ pub fn request(store: &Store, id: &str, action: &str, payload: Value) -> Result<
 pub fn executable() -> Result<PathBuf> {
     let current = std::env::current_exe()?;
     let mut candidates = Vec::new();
-    if let Some(path) = std::env::var_os("HARBORVM_APP") {
+    if let Some(path) = std::env::var_os("E2EVM_APP").or_else(|| std::env::var_os("HARBORVM_APP")) {
         candidates.push(PathBuf::from(path));
     }
     if let Some(parent) = current.parent() {
-        candidates.push(parent.join("HarborVMDesktop"));
-        candidates.push(parent.join("HarborVM.app"));
-        candidates.push(parent.join("../../dist/HarborVM.app"));
+        for name in [
+            "E2EVMDesktop",
+            "E2EVM.app",
+            "../../dist/E2EVM.app",
+            "HarborVMDesktop",
+            "HarborVM.app",
+            "../../dist/HarborVM.app",
+        ] {
+            candidates.push(parent.join(name));
+        }
     }
-    candidates
-        .into_iter()
-        .map(|path| {
-            if path.extension().is_some_and(|ext| ext == "app") {
-                path.join("Contents/MacOS/HarborVMDesktop")
+    for path in candidates {
+        if path.extension().is_some_and(|ext| ext == "app") {
+            // Renamed bundles may still contain the legacy executable. Inspect what exists.
+            let names = if path.file_name().is_some_and(|name| name == "HarborVM.app") {
+                ["HarborVMDesktop", "E2EVMDesktop"]
             } else {
-                path
+                ["E2EVMDesktop", "HarborVMDesktop"]
+            };
+            for name in names {
+                let executable = path.join("Contents/MacOS").join(name);
+                if executable.is_file() {
+                    return Ok(executable);
+                }
             }
-        })
-        .find(|path| path.is_file())
-        .context(
-            "Cannot find HarborVM.app; build it with scripts/build-macos.sh or set HARBORVM_APP",
-        )
+        } else if path.is_file() {
+            return Ok(path);
+        }
+    }
+    bail!("Cannot find E2EVM.app; build it with scripts/build-macos.sh or set E2EVM_APP")
 }
 
 pub fn launch(store: &Store, activate: bool) -> Result<()> {

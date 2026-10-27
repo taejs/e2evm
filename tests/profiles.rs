@@ -1,4 +1,4 @@
-use harborvm::{
+use e2evm::{
     profile::{Profile, Store},
     safe_fs,
 };
@@ -18,7 +18,7 @@ fn profiles_round_trip_and_never_overwrite() {
 
 #[test]
 fn old_profiles_keep_defaults_and_optional_dependencies_are_validated() {
-    use harborvm::profile::{GuestOS, SetupOptions};
+    use e2evm::profile::{GuestOS, SetupOptions};
     let legacy = r#"{"version":1,"id":"old","name":"Old","cpus":2,"memory_mib":2048,"disk_gib":24,"ready":false}"#;
     let profile: Profile = serde_json::from_str(legacy).unwrap();
     assert_eq!(profile.guest_os, GuestOS::Linux);

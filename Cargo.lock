@@ -136,6 +136,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "e2evm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "libc",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -234,20 +248,6 @@ dependencies = [
  "r-efi",
  "rand_core",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "harborvm"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "libc",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "tokio",
 ]
 
 [[package]]

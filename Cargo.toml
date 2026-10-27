@@ -1,11 +1,11 @@
 [package]
-name = "harborvm"
+name = "e2evm"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 description = "A local VM workspace with a Rust core and CLI"
 license = "MIT"
-repository = "https://github.com/taejs/harborvm"
+repository = "https://github.com/taejs/e2evm"
 
 [dependencies]
 anyhow = "1"

@@ -1,4 +1,4 @@
-use harborvm::{
+use e2evm::{
     Result, bail,
     profile::{GuestOS, Profile, SetupOptions, Store},
 };
@@ -7,7 +7,7 @@ use std::path::Path;
 
 fn help() {
     println!(
-        "HarborVM — local VM workspace\n\n  app                                  Open the desktop workspace\n  profile list | show ID               Inspect saved machines\n  profile create ID [--name NAME] [--cpus N] [--memory MIB] [--disk GIB] [--os linux|macos] [--without COMPONENTS]\n  profile assistant ID PROGRAM         Choose the local Codex executable\n  profile connection ID PROVIDER [--endpoint URL] [--model MODEL] [--key-env NAME]\n  assistant models ID                  Discover API models\n  assistant models-json ID             Discover models with stdin JSON key\n  prepare ID [--cache DIRECTORY]        Prepare a fresh guest\n  prepare ID --restore-image FILE.ipsw  Install macOS from an Apple restore image\n  start | status | pause | resume ID    Control a machine\n  stop ID                              Request graceful shutdown\n  poweroff ID                          Force stop; unsaved work may be lost\n  exec ID -- PROGRAM [ARG...]           Run a guest command (60 s timeout)\n  run ID SHELL-LINE                     Run a shell line inside the guest\n  chat ID PROMPT                        Ask the selected assistant provider\n  chat-json ID                          Read conversation JSON from stdin\n  screenshot ID OUTPUT.png [--app]      Capture the guest or workspace\n  input ID click X Y | key KEY | text TEXT\n\nHARBORVM_HOME selects the private data directory. HARBORVM_APP selects the native app.\nSetup components: desktop,browser,python,node,playwright or all. Disabling a prerequisite also disables its dependents.\nGuest commands never fall back to host execution."
+        "E2EVM — local VM workspace\n\n  app                                  Open the desktop workspace\n  profile list | show ID               Inspect saved machines\n  profile create ID [--name NAME] [--cpus N] [--memory MIB] [--disk GIB] [--os linux|macos] [--without COMPONENTS]\n  profile assistant ID PROGRAM         Choose the local Codex executable\n  profile connection ID PROVIDER [--endpoint URL] [--model MODEL] [--key-env NAME]\n  assistant models ID                  Discover API models\n  assistant models-json ID             Discover models with stdin JSON key\n  prepare ID [--cache DIRECTORY]        Prepare a fresh guest\n  prepare ID --restore-image FILE.ipsw  Install macOS from an Apple restore image\n  start | status | pause | resume ID    Control a machine\n  stop ID                              Request graceful shutdown\n  poweroff ID                          Force stop; unsaved work may be lost\n  exec ID -- PROGRAM [ARG...]           Run a guest command (60 s timeout)\n  run ID SHELL-LINE                     Run a shell line inside the guest\n  chat ID PROMPT                        Ask the selected assistant provider\n  chat-json ID                          Read conversation JSON from stdin\n  screenshot ID OUTPUT.png [--app]      Capture the guest or workspace\n  input ID click X Y | key KEY | text TEXT\n\nE2EVM_HOME selects the private data directory. E2EVM_APP selects the native app.\nLegacy HARBORVM_HOME and HARBORVM_APP aliases remain supported.\nSetup components: desktop,browser,python,node,playwright or all. Disabling a prerequisite also disables its dependents.\nGuest commands never fall back to host execution."
     );
 }
 fn run() -> Result<()> {
@@ -17,17 +17,17 @@ fn run() -> Result<()> {
         return Ok(());
     }
     if args[0] == "--version" {
-        println!("harborvm {}", env!("CARGO_PKG_VERSION"));
+        println!("e2evm {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
     let store = Store::open(Store::default_root()?)?;
     let arg = |i: usize| {
         args.get(i)
             .map(String::as_str)
-            .ok_or_else(|| anyhow::anyhow!("Missing argument; run harborvm help"))
+            .ok_or_else(|| anyhow::anyhow!("Missing argument; run e2evm help"))
     };
     if args[0] == "app" {
-        harborvm::bridge::launch(&store, true)?;
+        e2evm::bridge::launch(&store, true)?;
         println!("{{\"ok\":true}}");
         return Ok(());
     }
@@ -48,12 +48,12 @@ fn run() -> Result<()> {
                 if cache.is_some() {
                     bail!("Use --restore-image for a local macOS IPSW");
                 }
-                harborvm::provision::prepare_macos(&store, id, restore)?;
+                e2evm::provision::prepare_macos(&store, id, restore)?;
             } else {
                 if restore.is_some() {
                     bail!("--restore-image is only for macOS profiles");
                 }
-                harborvm::provision::prepare(&store, id, cache)?;
+                e2evm::provision::prepare(&store, id, cache)?;
             }
             store.descriptor(id)?
         }
@@ -66,7 +66,7 @@ fn run() -> Result<()> {
             } else {
                 vec!["/bin/sh".into(), "-lc".into(), arg(2)?.into()]
             };
-            let value = harborvm::guest::execute(&store, id, &argv, 60)?;
+            let value = e2evm::guest::execute(&store, id, &argv, 60)?;
             println!("{}", serde_json::to_string_pretty(&value)?);
             if value["ok"] != true {
                 std::process::exit(1);
@@ -74,20 +74,20 @@ fn run() -> Result<()> {
             return Ok(());
         }
         ("chat-json", id) => {
-            let input = harborvm::assistant_api::read_input(std::io::stdin().lock())?;
-            harborvm::assistant_api::chat(&store, id, input)?;
+            let input = e2evm::assistant_api::read_input(std::io::stdin().lock())?;
+            e2evm::assistant_api::chat(&store, id, input)?;
             return Ok(());
         }
         ("assistant", "models" | "models-json") => {
             let input = if args[1] == "models-json" {
-                harborvm::assistant_api::read_input(std::io::stdin().lock())?
+                e2evm::assistant_api::read_input(std::io::stdin().lock())?
             } else {
-                harborvm::assistant_api::ModelInput::default()
+                e2evm::assistant_api::ModelInput::default()
             };
-            harborvm::assistant_api::models(&store, arg(2)?, input)?
+            e2evm::assistant_api::models(&store, arg(2)?, input)?
         }
         ("chat", id) => {
-            harborvm::assistant::run(&store, id, arg(2)?)?;
+            e2evm::assistant::run(&store, id, arg(2)?)?;
             return Ok(());
         }
         ("screenshot", id) => {
@@ -96,7 +96,7 @@ fn run() -> Result<()> {
             } else {
                 "screenshot"
             };
-            let response = harborvm::bridge::request(&store, id, action, json!({}))?;
+            let response = e2evm::bridge::request(&store, id, action, json!({}))?;
             let encoded = response["png_base64"]
                 .as_str()
                 .ok_or_else(|| anyhow::anyhow!("Missing screenshot data"))?;
@@ -131,23 +131,23 @@ fn run() -> Result<()> {
                 "text" => json!({"text":arg(3)?}),
                 _ => bail!("Input must be click, key, or text"),
             };
-            harborvm::bridge::request(&store, id, action, payload)?
+            e2evm::bridge::request(&store, id, action, payload)?
         }
         ("start" | "pause" | "resume" | "stop" | "poweroff" | "select" | "refresh", id) => {
             store.load(id)?;
             if args[0] == "start" {
-                harborvm::bridge::launch(&store, false)?;
+                e2evm::bridge::launch(&store, false)?;
             }
-            harborvm::bridge::request(&store, id, &args[0], json!({}))?
+            e2evm::bridge::request(&store, id, &args[0], json!({}))?
         }
         ("status", id) => {
             let profile = store.load(id)?;
             let mut value = if !store.root.join("control.sock").exists() {
                 json!({"ok":true,"profile":id,"name":profile.name,"state":"stopped","ready":profile.ready})
             } else {
-                harborvm::bridge::request(&store, id, "status", json!({}))?
+                e2evm::bridge::request(&store, id, "status", json!({}))?
             };
-            value["guest_online"] = harborvm::guest::online(&store, id).into();
+            value["guest_online"] = e2evm::guest::online(&store, id).into();
             value
         }
         ("profile", "list") => json!(store.list()?),
@@ -159,7 +159,7 @@ fn run() -> Result<()> {
             store.descriptor(&profile.id)?
         }
         ("profile", "connection") => {
-            use harborvm::assistant_api::{Connection, Provider};
+            use e2evm::assistant_api::{Connection, Provider};
             let provider = match arg(3)? {
                 "codex" => Provider::Codex,
                 "ollama" => Provider::Ollama,
@@ -257,7 +257,7 @@ fn run() -> Result<()> {
             store.create(&profile)?;
             store.descriptor(id)?
         }
-        _ => bail!("Unknown command; run harborvm help"),
+        _ => bail!("Unknown command; run e2evm help"),
     };
     print_json(&result)
 }

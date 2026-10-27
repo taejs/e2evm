@@ -1,6 +1,6 @@
 # Dependencies and licensing
 
-HarborVM's original source and documentation are covered by the [MIT license](../LICENSE). That license does not relicense guest operating systems, browsers, external model services, or platform frameworks.
+E2EVM's original source and documentation are covered by the [MIT license](../LICENSE). That license does not relicense guest operating systems, browsers, external model services, or platform frameworks.
 
 ## Rust dependencies
 
@@ -33,7 +33,7 @@ Cargo registry packages include their upstream source and license files. A binar
 - Apple's SDK, Swift compiler, AppKit, SwiftUI, and Virtualization.framework build and run the native app under Apple's applicable terms.
 - Host utilities `curl`, `tar`, `gzip`, `hdiutil`, and `base64` handle downloads, image preparation, and screenshot decoding.
 - Node.js 22.15+ supplies zstd decompression for the Ubuntu kernel. It is required during preparation, not embedded in the app.
-- Codex CLI and Ollama are optional, separately installed products. HarborVM neither bundles their executables nor downloads model weights.
+- Codex CLI and Ollama are optional, separately installed products. E2EVM neither bundles their executables nor downloads model weights.
 
 ## Guest software
 
@@ -47,4 +47,4 @@ macOS restore images are obtained from Apple or an explicitly selected local App
 
 ## Design references
 
-The [design document](design.md) records the Orca and Ollama references. No reference-project code, branding, or UI assets are redistributed. HarborVM's local welcome page is original. Repository screenshots should show only a disposable guest and non-sensitive demonstration content.
+The [design document](design.md) records the Orca and Ollama references. No reference-project code, branding, or UI assets are redistributed. E2EVM's local welcome page is original. Repository screenshots should show only a disposable guest and non-sensitive demonstration content.

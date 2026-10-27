@@ -232,7 +232,7 @@ pub fn chat(store: &Store, id: &str, input: ChatInput) -> Result<()> {
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("Choose a model before chatting"))?;
     let mut messages = vec![
-        json!({"role":"system", "content":format!("You are the advisory assistant in HarborVM. Profile ID: {}; profile name: {}. Only the conversation and this identity are supplied. You have no VM tools or access to guest files, terminal output, or clipboard. Explain commands as suggestions; your response is displayed as text and never executed by HarborVM.", profile.id, profile.name)}),
+        json!({"role":"system", "content":format!("You are the advisory assistant in E2EVM. Profile ID: {}; profile name: {}. Only the conversation and this identity are supplied. You have no VM tools or access to guest files, terminal output, or clipboard. Explain commands as suggestions; your response is displayed as text and never executed by E2EVM.", profile.id, profile.name)}),
     ];
     messages.extend(
         input
