@@ -51,4 +51,4 @@ The [design document](design.md) records the Orca and Ollama references. No refe
 
 ## Demonstration content
 
-The workspace screenshot shows [Wafflebase](https://github.com/wafflebase/wafflebase) at revision `225b258c1025a86b1466d84b3e13915c0ce4173c`, licensed Apache-2.0. It uses the upstream local in-memory spreadsheet development harness with disposable sales data. No Wafflebase source code or executable is bundled. The screenshot records actual Playwright interactions in the Linux guest; it does not demonstrate the complete hosted product or its collaboration backend.
+The workspace screenshot shows [Wafflebase](https://github.com/wafflebase/wafflebase) at revision `225b258c1025a86b1466d84b3e13915c0ce4173c`, licensed [Apache-2.0](licenses/Wafflebase-Apache-2.0.txt). It uses the upstream local in-memory spreadsheet development harness with disposable sales data. No Wafflebase source code or executable is bundled. The screenshot records actual Playwright interactions in the Linux guest; it does not demonstrate the complete hosted product or its collaboration backend.

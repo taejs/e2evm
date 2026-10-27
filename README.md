@@ -1,6 +1,6 @@
 # E2EVM
 
-Let your agent test. Keep your desktop.
+![E2EVM — Let your agent test. Keep your desktop.](assets/brand/social-preview.png)
 
 A local VM workspace for agent-driven browser testing on Apple Silicon, with a Rust core and CLI.
 

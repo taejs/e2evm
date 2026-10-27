@@ -13,7 +13,7 @@ Recorded on 2026-10-27 on Apple Silicon. This is functional verification of the 
 - Whole-app Swift typechecking with warnings treated as errors passed; signed native app build passed.
 - macOS preparation helper rejected nine invalid/unsafe invocation cases. The guest bootstrap rejected execution on the physical host before mutation.
 - Skill frontmatter, linked files, installer overwrite refusal, shell syntax and runnable Python example checks passed.
-- The portable CI commands also passed inside a real Ubuntu ARM64 guest on source revision `796aceb`, using stable Rust 1.99.1 and one build job: formatting, all-target Clippy with warnings denied, 30 Rust tests, 6 guest-worker tests and shell syntax. This verifies the Linux command sequence separately from macOS; the GitHub-hosted workflow itself has not run yet.
+- The portable CI commands also passed inside a real Ubuntu ARM64 guest on source revision `796aceb`, using stable Rust 1.99.1 and one build job: formatting, all-target Clippy with warnings denied, 30 Rust tests, 6 guest-worker tests and shell syntax. This verifies the Linux command sequence separately from macOS; the first GitHub-hosted run subsequently passed on `5cf9492`, including both the Ubuntu portable checks and the Apple Silicon native test/build/sign job.
 
 ## Real guest and application checks
 
@@ -49,4 +49,4 @@ Public screenshots and recordings use disposable test state. No existing product
 
 ## Release review
 
-Review `20261027-release-6ac815b0` covered correctness, tests, maintainability, agent integration, security, API contracts, reliability, Swift and adversarial cases. Five validated findings were fixed and received focused follow-up inspection. A different-provider review CLI was unavailable, so the adversarial pass used the available agent route. E2EVM is the selected public identity. Its rename received focused compatibility review; the signed app opened the existing development guest and executed a command successfully. Hosted CI remains pending publication.
+Review `20261027-release-6ac815b0` covered correctness, tests, maintainability, agent integration, security, API contracts, reliability, Swift and adversarial cases. Five validated findings were fixed and received focused follow-up inspection. A different-provider review CLI was unavailable, so the adversarial pass used the available agent route. E2EVM is the selected public identity. Its rename received focused compatibility review; the signed app opened the existing development guest and executed a command successfully. GitHub-hosted portable and Apple Silicon native checks passed on `5cf9492`; later documentation-only changes are checked again by the same workflow.
