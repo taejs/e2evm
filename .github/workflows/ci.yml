@@ -32,6 +32,8 @@ jobs:
         run: cargo test --locked
       - name: Test guest worker
         run: python3 tests/guest_worker.py
+      - name: Test agent setup and screenshot delivery
+        run: python3 tests/agent_tools.py
       - name: Check shell syntax
         run: |
           for script in guest/setup.sh guest/setup-macos.sh scripts/build-macos.sh platform/macos/tests/run.sh; do

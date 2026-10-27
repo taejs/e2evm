@@ -18,20 +18,45 @@ use std::{
 };
 
 pub fn request(store: &Store, id: &str, action: &str, payload: Value) -> Result<Value> {
+    request_if_running(store, id, action, payload)?
+        .context("Workspace is not running; run e2evm app")
+}
+
+/// A missing or refused socket has no listening workspace. Once connected,
+/// protocol failures remain errors: an uncertain operation is never retried.
+pub fn request_if_running(
+    store: &Store,
+    id: &str,
+    action: &str,
+    payload: Value,
+) -> Result<Option<Value>> {
     crate::profile::validate_id(id)?;
     #[cfg(unix)]
     {
         let path = store.root.join("control.sock");
-        let metadata =
-            fs::symlink_metadata(&path).context("Workspace is not running; run e2evm app")?;
+        let metadata = match fs::symlink_metadata(&path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error).context("Cannot inspect workspace control socket"),
+        };
         if !metadata.file_type().is_socket()
             || metadata.uid() != unsafe { libc::geteuid() }
             || metadata.mode() & 0o077 != 0
         {
             bail!("Unsafe workspace control socket");
         }
-        let mut socket =
-            UnixStream::connect(path).context("Cannot connect to workspace; run e2evm app")?;
+        let mut socket = match UnixStream::connect(path) {
+            Ok(socket) => socket,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::ConnectionRefused | std::io::ErrorKind::NotFound
+                ) =>
+            {
+                return Ok(None);
+            }
+            Err(error) => return Err(error).context("Cannot connect to workspace"),
+        };
         socket.set_read_timeout(Some(Duration::from_secs(120)))?;
         socket.set_write_timeout(Some(Duration::from_secs(10)))?;
         let request_id = format!(
@@ -64,7 +89,7 @@ pub fn request(store: &Store, id: &str, action: &str, payload: Value) -> Result<
                     .unwrap_or("Platform operation failed")
             );
         }
-        Ok(value)
+        Ok(Some(value))
     }
     #[cfg(not(unix))]
     {

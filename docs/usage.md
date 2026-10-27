@@ -20,6 +20,8 @@ e2evm status research
 
 `start` brings up the native workspace in the background and preserves the current app's focus. Use `e2evm app` when you want to bring its window forward. Selecting a machine with the CLI also preserves host focus.
 
+While the native app is running, `status` also reports `workspace.visible`, `workspace.active`, `workspace.full_screen`, and the requested profile's `workspace.console_visible`. Querying these fields does not bring the app forward. After the app quits, a stale private socket is treated as stopped; invalid or unsafe socket paths and connected protocol failures still return errors.
+
 Memory is in MiB. Creation accepts 1–32 CPUs and 512–65536 MiB; the host framework still validates resources before boot. Linux defaults to a 24 GiB sparse disk. Use `--disk GIB` at creation to select a different size. macOS profiles use `--os macos` and default to 4 GiB RAM and a 64 GiB disk; see [macOS setup](macos.md). There is no supported command to resize an existing machine or import another VM's disk.
 
 `prepare` downloads the pinned Ubuntu ARM64 image and checks official SHA-256 manifests. `prepare ID --cache DIRECTORY` may read the three matching cached artifacts, but it still fetches current manifests from the pinned upstream directory and verifies every file. A cache is not a disk import feature.
@@ -48,7 +50,9 @@ e2evm exec research -- node --version
 
 `exec ID -- PROGRAM ARG...` preserves argument boundaries. `run ID 'SHELL-LINE'` intentionally uses `/bin/sh -lc` in the guest; quote the line so the host shell does not expand it first. The command timeout is 60 seconds. Results include output, exit code, timeout, and truncation state. Failed guest commands make the CLI exit nonzero. Commands never fall back to the Mac when the guest is unavailable.
 
-Use the desktop console for the same command-and-result workflow. It does not support interactive programs waiting for terminal input. Long-running background jobs should redirect their standard streams and be supervised inside the guest. After a command timeout, output draining is limited to another 0.5 seconds so a detached child cannot block later requests by holding stdout open. A detached process may still be running; inspect the guest before retrying work.
+Use the desktop console for the same command-and-result workflow. It starts collapsed; choose **Show console** or press **⌘J**. The first explicit `e2evm app` opening enters full screen, which can be toggled with **⌃⌘F**. Agent-triggered `start` remains in the background.
+
+The console does not support interactive programs waiting for terminal input. Long-running background jobs should redirect their standard streams and be supervised inside the guest. After a command timeout, output draining is limited to another 0.5 seconds so a detached child cannot block later requests by holding stdout open. A detached process may still be running; inspect the guest before retrying work.
 
 Chrome keeps its profile at `/home/harbor/.local/share/harborvm/chrome`. The Python environment is `/home/harbor/Workspace/.venv`; Python Playwright is installed there. Node.js and npm come from Ubuntu packages. Browser state persists on the VM disk across normal restarts.
 

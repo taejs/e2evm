@@ -1,77 +1,117 @@
-# Give your agent its own browser workspace
+# Give your coding agent its own browser
 
-Run E2E flows in the guest while you continue using your Mac. The integration is a CLI plus a portable skill, repository instructions, and ready-to-use prompts. Your existing coding agent invokes the CLI; the right-side assistant conversation does not automatically operate the guest.
+Your existing agent invokes the `e2evm` CLI to work inside a dedicated guest.
+E2EVM's right-side assistant is a chat panel; its replies do not execute commands.
+This kit covers the Ubuntu browser environment on Apple Silicon, macOS 14+.
 
-This guide covers the current Ubuntu browser environment on Apple Silicon. E2EVM is the public product and CLI name.
+## Choose the skill for the job
 
-## Prepare once
-
-Build the native app using the [installation instructions](../README.md), then put the bundled CLI on your terminal's path. From this repository:
-
-```sh
-export PATH="$PWD/dist/E2EVM.app/Contents/MacOS:$PATH"
-e2evm help
-e2evm profile list
-```
-
-Use an existing dedicated test profile, or create a new one with an unused ID:
-
-```sh
-e2evm profile create e2e --os linux --name "E2E workspace" --cpus 2 --memory 4096
-e2evm prepare e2e
-e2evm start e2e
-e2evm status e2e
-```
-
-First boot downloads and installs the browser tools. Wait for `guest_online: true`, then check `e2evm exec e2e -- test -f /var/lib/harborvm/setup-complete`. A running worker alone does not mean Chrome is ready. Use the same `E2EVM_HOME` for the agent and desktop if you configured a custom data directory. Keep this guest separate from production VMs and accounts.
-
-Setup components are enabled by default. At creation, `--without node` omits Node.js, while `--without all` omits the optional workstation tools. Inspect `e2evm profile show e2e` before relying on a component. The Python browser smoke recipe requires desktop, browser, Python, and Playwright; an agent should preserve deliberately disabled choices instead of silently reinstalling them. This Linux guide does not cover macOS guest onboarding.
-
-## Install the skill, or point an agent to it
-
-The complete skill lives at [`skills/guest-e2e`](../skills/guest-e2e/SKILL.md). Copying that directory includes its references. For Codex, run this one command from the repository root. It copies into your skills directory and **fails if `guest-e2e` already exists**; it does not replace existing configuration:
-
-```sh
-python3 - <<'PY'
-import os
-from pathlib import Path
-import shutil
-
-source = Path("skills/guest-e2e")
-destination = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "skills" / "guest-e2e"
-if not (source / "SKILL.md").is_file():
-    raise SystemExit("Run this from the E2EVM repository root")
-destination.parent.mkdir(parents=True, exist_ok=True)
-shutil.copytree(source, destination)
-print(f"Installed {destination}")
-PY
-```
-
-Open a new agent session if its skill list was already loaded, then invoke `$guest-e2e`. No model API key is required by the skill or CLI transport; your chosen agent's own service requirements still apply.
-
-For another agent, provide the local path to `SKILL.md` and let it read the linked references. Use the [repository instruction snippet](../examples/agent-instructions.md) in your project's `AGENTS.md` or `CLAUDE.md`; append it deliberately rather than replacing existing instructions. The snippet gives the agent a specific profile and skill path. This is a documented CLI integration, not a claim of a native plugin for every agent.
-
-## Delegate a test
-
-First check the browser connection using the skill's self-contained fixture:
-
-> Use $guest-e2e with profile e2e. Run its bundled browser smoke recipe against the local HTML fixture and return the assertions, screenshot, and guest command result. Keep the VM running.
-
-For your own application, supply a URL reachable from the guest and its expected results. Passing the fixture verifies the integration, not your application. [More prompts](../examples/prompts.md) cover a complete flow and missing dependencies. The skill contains a [runnable smoke recipe](../skills/guest-e2e/references/browser-smoke.md) that produces host-side evidence.
-
-Screenshots are required in every browser E2E report. The agent captures the final state and any failure before cleanup, transfers the images to the host, opens them for inspection, and embeds or attaches them in its reply with captions. A path or "screenshot saved" message alone is insufficient. If capture or delivery fails, it reports the test outcome separately, marks screenshot evidence blocked, and does not claim the whole task is complete. These are instructions for the external agent; the app's chat panel does not attach images automatically.
-
-Your agent can install needed tools **inside the guest**, using existing Ubuntu, npm, or Python tools. It first checks what is installed and follows your project's dependency versions. Long installs and suites run as supervised guest jobs because each CLI command has a 60-second limit.
-
-## What is and is not connected
-
-| Component | Connection |
+| Skill | When to use it |
 | --- | --- |
-| Coding agent | Runs the host `e2evm` CLI; guest commands execute inside the selected VM. |
-| Visible browser | Guest Chrome with a persistent profile; Python Playwright can attach from guest localhost. |
-| App assistant | Codex, Ollama, or a compatible chat API; replies do not trigger guest actions. |
-| Local project | Not mounted or synchronized automatically. Clone an approved revision inside the guest or arrange an explicit transfer. |
-| Local development server | Guest localhost reaches the guest. A Mac-only localhost service needs an explicitly reachable address or a guest deployment. |
-| Results | CLI output returns to the agent. Guest files stay in the guest unless explicitly transferred; the smoke recipe returns a small screenshot. |
+| [`e2evm-setup`](../skills/e2evm-setup/SKILL.md) | Locate or build E2EVM, reuse or prepare a dedicated Linux guest, verify readiness, and deliver a browser smoke screenshot. |
+| [`guest-e2e`](../skills/guest-e2e/SKILL.md) | Test an application in that guest, install necessary guest dependencies, and return assertions with inspected screenshots. |
 
-See the skill's [environment guide](../skills/guest-e2e/references/environment.md) for networking, project transfer, dependency checks, and long jobs. The guest is a separate workspace with networking and a shared command mailbox; it is not a promise that arbitrary untrusted code is harmless. Keep test actions, credentials, and cleanup within the requested scope.
+There are two skills because initial VM setup and day-to-day application testing
+have different scopes. Dependency installation stays with the test workflow:
+inspect the guest, follow the project's lockfiles, preserve disabled components,
+and supervise long jobs.
+
+## Install selected skills
+
+From the E2EVM checkout, inspect the bundle and preview installation:
+
+```sh
+python3 scripts/install-agent-skills.py --list
+python3 scripts/install-agent-skills.py --agent codex --dry-run
+```
+
+Install both into Codex's personal skill directory:
+
+```sh
+python3 scripts/install-agent-skills.py --agent codex
+```
+
+Or install into Claude Code's personal directory, or an explicit project directory:
+
+```sh
+python3 scripts/install-agent-skills.py --agent claude
+python3 scripts/install-agent-skills.py --dest /path/to/project/.claude/skills
+```
+
+These are alternatives; choose the target you use. `--agent codex` honors
+`CODEX_HOME` and otherwise uses `~/.codex/skills`; `--agent claude` uses
+`~/.claude/skills`. Claude Code also supports the project's `.claude/skills`
+[directory](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview).
+For another agent, choose its documented skill directory with `--dest`, or provide
+it the installed `SKILL.md` path explicitly. This is a portable instruction kit,
+not a claim of a native plugin for every agent or Claude Desktop chat mode.
+
+Select only what you need with `--skills e2evm-setup` or `--skills guest-e2e`.
+`--list --agent codex` inventories target collisions. The installer checks every
+selected destination before copying and refuses any existing directory, file, or
+symlink. It does not update existing skills, modify agent configuration, or install
+E2EVM itself. For an upgrade, inspect the differences and choose a fresh destination
+or deliberately manage your old copy. Interrupted copies are reported for inspection.
+
+Reload the agent's skill list or start a new session after installation. The
+installer needs only Python 3's standard library. Copying an entire skill folder
+manually also works; keep its scripts, references, and metadata together.
+
+## First setup
+
+For manual prerequisites and commands, follow [Install E2EVM](install.md). To have
+your agent do the authorized setup, use:
+
+> Use $e2evm-setup to set up E2EVM from [checkout path]. Reuse dedicated profile [ID] if suitable, otherwise create a dedicated Linux E2E guest. Preserve my component choices and other VMs. Verify the guest browser and attach an inspected screenshot. Leave it running.
+
+The setup skill can be installed by itself. Its bundled helper runs a local HTML
+fixture inside guest Chrome, asserts the title and heading, returns a screenshot,
+and closes only its test tab. A fixture pass proves the integration, not your app.
+
+For browser startup, the agent checks `command -v e2evm-browser` inside the
+selected guest. New installs provide that name; an older prepared guest may
+only have executable `/usr/local/bin/harbor-browser`, which can be reused as-is.
+An already running guest Chrome can be attached directly. Missing the new alias
+does not require package reinstallation, a setup rerun, or VM migration. If both
+launchers are absent, inspect the guest setup choices and logs; do not switch to
+a host browser. The skills include this compatibility check.
+
+Use the same `E2EVM_HOME` as the desktop if you configured a custom data directory.
+Setup components default to enabled and creation accepts `--without` options;
+agents preserve deliberately disabled choices. The supplied visible Python
+browser recipe needs desktop, browser, Python, and Playwright. macOS guest setup
+is separate; see [the macOS guide](macos.md).
+
+## Delegate real application work
+
+Once setup passes, supply the source and a URL reachable from the guest:
+
+> Use $guest-e2e with profile [ID] to verify [code change] at [URL]. First confirm that [revision or approved local changes] is running there. Run [assertions or project suite], attach inspected screenshots of the actual result and any failure, and report the guest command outcome. Leave the VM running.
+
+The [project instruction snippet](../examples/agent-instructions.md) works in
+`AGENTS.md` or `CLAUDE.md`; append it without replacing existing project rules.
+[More prompts](../examples/prompts.md) cover setup, smoke tests, complete flows,
+and missing dependencies.
+
+Every browser E2E report requires actual screenshots: capture before cleanup,
+transfer them to the host, inspect the images, then embed or attach them in the
+reply with captions. Paths alone are insufficient. If evidence cannot be captured
+or delivered, report the test outcome separately and mark screenshot evidence
+blocked. The app's chat panel does not attach these images automatically.
+
+## Connection boundaries
+
+| Component | Behavior |
+| --- | --- |
+| Coding agent | Runs the host CLI; `exec` commands run in the selected guest. |
+| Guest Chrome | Persistent browser profile; Playwright connects from guest localhost. |
+| App assistant | Codex, Ollama, or compatible chat API; no autonomous guest execution. |
+| Project files | No automatic mount or sync. Clone an authorized revision or arrange an explicit transfer of local changes. |
+| Development server | Guest localhost reaches the guest. A Mac-only localhost service needs an explicitly reachable address or a guest deployment. |
+| Results | CLI output returns to the agent. Guest files need explicit transfer; the smoke helpers return small screenshots. |
+
+No model API key is required for the skills or CLI transport. Your chosen coding
+agent's service requirements still apply. See the test skill's
+[environment reference](../skills/guest-e2e/references/environment.md) for project
+transfer, dependency checks, and supervised jobs beyond the 60-second command
+limit. It keeps project installs in the guest and never falls back to a host browser.

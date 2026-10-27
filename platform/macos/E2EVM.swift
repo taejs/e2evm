@@ -7,6 +7,7 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     var window: NSWindow!
     private var terminationPending = false
     private var terminationReady = false
+    private var hasPresentedWorkspace = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
             let arguments = CommandLine.arguments
@@ -26,19 +27,31 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             server = try ControlServer(root: root, model: model)
             window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 920), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
             window.title = "E2EVM"; window.delegate = self; window.isReleasedWhenClosed = false
+            window.collectionBehavior.insert(.fullScreenPrimary)
             window.minSize = NSSize(width: 1120, height: 762)
             window.titlebarAppearsTransparent = true
             window.backgroundColor = NSColor(red: 0.065, green: 0.073, blue: 0.080, alpha: 1)
             window.contentView = NSHostingView(rootView: WorkspaceView(model: model))
             window.center()
             if arguments.contains("--background") { window.orderBack(nil) }
-            else { window.makeKeyAndOrderFront(nil) }
             installMenus()
             server?.start()
-            if !arguments.contains("--background") { NSApp.activate(ignoringOtherApps: true) }
+            if !arguments.contains("--background") { presentWorkspace() }
         } catch {
             fputs("E2EVM: \(error.localizedDescription)\n", stderr)
             NSApp.terminate(nil)
+        }
+    }
+    func presentWorkspace() {
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        guard !hasPresentedWorkspace else { return }
+        hasPresentedWorkspace = true
+        // Enter full screen only when the user opens the workspace. Agent starts
+        // remain in the background; reopening respects an explicit exit from it.
+        DispatchQueue.main.async { [weak self] in
+            guard let window = self?.window, !window.styleMask.contains(.fullScreen) else { return }
+            window.toggleFullScreen(nil)
         }
     }
     private func installMenus() {
@@ -64,11 +77,13 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         let windows = addMenu("Window")
         windows.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windows.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        let fullScreen = windows.addItem(withTitle: "Toggle Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
+        fullScreen.keyEquivalentModifierMask = [.command, .control]
         NSApp.windowsMenu = windows
         NSApp.mainMenu = menu
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { window?.makeKeyAndOrderFront(nil); return true }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { presentWorkspace(); return true }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let model else { return .terminateNow }
         if model.hasActiveMachines || model.preparing || model.creating {

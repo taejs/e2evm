@@ -40,7 +40,7 @@ final class ProfileSession: ObservableObject {
     @Published var action: String?
     @Published var progress = ""
     @Published var guestOnline = false
-    @Published var consoleVisible = true
+    @Published var consoleVisible = false
 }
 
 /// Each pipe has its own reader. Child processes must never block the AppKit queue.
@@ -402,8 +402,7 @@ final class WorkspaceModel: ObservableObject {
             let payload = request["payload"] as? [String: Any] ?? [:]
             if action == "activate" {
                 reload()
-                (NSApp.delegate as? ApplicationDelegate)?.window?.makeKeyAndOrderFront(nil)
-                NSApp.activate(ignoringOtherApps: true)
+                (NSApp.delegate as? ApplicationDelegate)?.presentWorkspace()
                 completion(["ok": true]); return
             }
             if action == "refresh" { reload(); completion(["ok": true]); return }
@@ -426,7 +425,16 @@ final class WorkspaceModel: ObservableObject {
             }
             let machine = try machine(id, refreshStopped: action == "start")
             switch action {
-            case "status": completion(machine.status)
+            case "status":
+                var status = machine.status
+                let window = (NSApp.delegate as? ApplicationDelegate)?.window
+                status["workspace"] = [
+                    "visible": window?.isVisible ?? false,
+                    "active": NSApp.isActive,
+                    "full_screen": window?.styleMask.contains(.fullScreen) ?? false,
+                    "console_visible": session(id).consoleVisible,
+                ]
+                completion(status)
             case "select": selectedID = id; completion(machine.status)
             case "screenshot": completion(["ok": true, "png_base64": try machine.screenshot().base64EncodedString()])
             case "click", "key", "text": try machine.input(action, payload: payload); completion(machine.status)

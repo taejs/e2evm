@@ -32,6 +32,8 @@ e2evm exec e2e -- test -f /var/lib/harborvm/setup-complete
 
 The first command lists available executables; its exit status alone does not establish that all four exist. Git is not part of the default desktop package list. The supplied Python virtual environment contains Playwright. Use the project's own environment when it declares a different version. Prefer its locked npm install over unrelated global installs; use a guest virtual environment for Python dependencies. Respect setup options the user deliberately disabled.
 
+Before treating a missing `e2evm-browser` as a dependency failure, check `command -v e2evm-browser` inside the selected guest, then check whether `/usr/local/bin/harbor-browser` is executable. Older prepared guests may only have the latter; reuse it, or attach to the already running guest Chrome. The [browser smoke recipe](browser-smoke.md) shows the check. A missing alias does not call for package installation, setup reruns, VM migration, or host-browser fallback.
+
 Do dependency work inside the guest through its existing tools: `sudo apt-get` for Ubuntu system packages, project-local `npm ci` for a committed lockfile, and a virtual environment's `python -m pip` for Python. Guest `sudo` is available without a password. Do not install tools on the Mac merely because they are missing in the guest.
 
 ## Jobs longer than 60 seconds

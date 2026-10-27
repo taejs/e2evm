@@ -3,8 +3,18 @@
 Run these snippets in the **host terminal**, with the bundled `e2evm` CLI on `PATH`. Replace profile `e2e` with the selected guest, which must have completed browser setup. The default local HTML fixture verifies the browser connection, assertions, and evidence transfer without depending on a public website. To test an application, replace its URL, title, and heading with the requested target; passing this fixture does not test that application or network access.
 
 ```sh
-e2evm exec e2e -- e2evm-browser
+e2evm exec e2e -- /bin/sh -lc '
+if command -v e2evm-browser >/dev/null 2>&1; then
+  exec e2evm-browser
+elif [ -x /usr/local/bin/harbor-browser ]; then
+  exec /usr/local/bin/harbor-browser
+else
+  printf "%s\n" "No guest browser launcher found; inspect setup choices and logs" >&2
+  exit 1
+fi'
 ```
+
+New guests provide `e2evm-browser`; older prepared guests may only have `/usr/local/bin/harbor-browser`. The snippet checks inside the selected guest and reuses the old launcher if the new alias is absent. If Chrome already exposes guest CDP port 9222, skip launching and attach directly. Do not reinstall packages, rerun setup, or migrate the VM just to add the new alias. If neither launcher exists, inspect setup choices and logs instead of using a host browser.
 
 Chrome may take a moment to expose its debugging endpoint. If connection is refused, check guest setup and browser logs, then retry the connection within a bounded wait. Do not launch a second browser profile to conceal a startup failure.
 

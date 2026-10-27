@@ -142,11 +142,16 @@ fn run() -> Result<()> {
         }
         ("status", id) => {
             let profile = store.load(id)?;
-            let mut value = if !store.root.join("control.sock").exists() {
-                json!({"ok":true,"profile":id,"name":profile.name,"state":"stopped","ready":profile.ready})
-            } else {
-                e2evm::bridge::request(&store, id, "status", json!({}))?
-            };
+            let mut value = e2evm::bridge::request_if_running(&store, id, "status", json!({}))?
+                .unwrap_or_else(|| {
+                    json!({
+                        "ok": true,
+                        "profile": id,
+                        "name": profile.name,
+                        "state": "stopped",
+                        "ready": profile.ready,
+                    })
+                });
             value["guest_online"] = e2evm::guest::online(&store, id).into();
             value
         }

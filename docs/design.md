@@ -2,7 +2,7 @@
 
 The workspace keeps four tasks visible: choosing a machine, using its desktop, running a guest command, and discussing a task with an assistant.
 
-A compact machine list sits on the left. The actual virtual machine display occupies the center, with the guest command console beneath it. The assistant occupies the right side. Graphite surfaces, restrained teal accents, and system typography keep the guest's web content visually distinct from host controls. Machine status and errors stay near the controls they affect.
+A compact machine list sits on the left. The actual virtual machine display occupies the center; the guest command console starts collapsed and opens below it with **Show console** or **⌘J**. The assistant occupies the right side. The first explicit opening enters native macOS full screen; **⌃⌘F** toggles it. Background agent starts do not enter full screen or activate the window. Graphite surfaces, restrained teal accents, and system typography keep the guest's web content visually distinct from host controls. Machine status and errors stay near the controls they affect.
 
 The design uses original SwiftUI/AppKit layouts and an original local welcome page. No third-party screenshots, icons, fonts, or UI source were copied into the app. System symbols are rendered by macOS.
 

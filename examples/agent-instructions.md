@@ -1,12 +1,15 @@
 # Repository instructions for E2E agents
 
-Append the following to your application's `AGENTS.md` or `CLAUDE.md`. Replace the profile and absolute local skill path once; preserve existing project instructions. An installed skill includes the same references as the repository copy.
+Append the following to your application's `AGENTS.md` or `CLAUDE.md`. Replace the profile and absolute local skill paths once; preserve existing project instructions. Install one or both with `python3 scripts/install-agent-skills.py` from the E2EVM checkout; see [agent setup](../docs/agents.md). Remove the setup-skill sentence if you installed only the testing skill. Installed folders include their scripts and references.
 
 ```markdown
 ## Browser E2E workspace
 
 For this project's browser E2E tasks, use E2EVM profile `e2e`.
-Read `/absolute/path/to/skills/guest-e2e/SKILL.md` and the linked reference relevant to the task.
+If the app or dedicated guest needs initial setup, read
+`/absolute/path/to/skills/e2evm-setup/SKILL.md` when installed. Reuse a suitable
+dedicated profile and preserve disabled components; do not repurpose another VM.
+For application tests after setup, read `/absolute/path/to/skills/guest-e2e/SKILL.md` and the linked reference relevant to the task.
 Invoke the installed `e2evm` CLI from the host; run browsers, test scripts,
 development servers, and missing project dependencies inside this guest.
 

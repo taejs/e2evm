@@ -34,6 +34,10 @@ One native app process owns the machine objects and their views. It does not sen
 
 Closing the window retains running machines. Opening the workspace again reuses the app. Quitting is refused while a machine or preparation is active. Profile selection changes the visible VM and the associated command/chat state.
 
+Window presentation belongs to the application delegate. The first explicit open enters native full screen, while agent-triggered starts leave the workspace in the background. Exiting full screen is respected on later opens in the same app session. Console visibility belongs to each profile session and starts collapsed; hiding it does not cancel a guest command.
+
+The bridge distinguishes an absent listener from a connected operation failure. A missing or refused private socket reports a stopped workspace, including after normal quit leaves a stale socket file. Unsafe paths, permission errors, and malformed, mismatched or incomplete replies remain errors. A connected operation with an unknown outcome is not replayed automatically.
+
 ## Profiles and ownership
 
 The default root is `~/Library/Application Support/E2EVM`; `E2EVM_HOME` selects a separate root. Profile directories contain configuration, disk and boot artifacts, the mailbox, and assistant working storage. The native app holds a process-wide lease, a per-profile lease, and a sidecar lease keyed by disk device/inode identity. The disk's own file is left to Virtualization.framework's image lock: holding a separate `flock` on it would prevent the framework storage service from opening it.

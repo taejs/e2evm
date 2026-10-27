@@ -1,0 +1,4 @@
+interface:
+  display_name: "E2EVM Setup"
+  short_description: "Prepare a dedicated E2EVM browser workspace"
+  default_prompt: "Use $e2evm-setup to build or reuse E2EVM, prepare my dedicated Linux guest, and verify the browser with an inspected screenshot."

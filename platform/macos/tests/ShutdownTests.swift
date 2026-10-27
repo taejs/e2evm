@@ -2,7 +2,10 @@ import AppKit
 import Foundation
 
 // The model only needs the delegate's window for UI-only requests in this harness.
-final class ApplicationDelegate: NSObject, NSApplicationDelegate { var window: NSWindow? }
+final class ApplicationDelegate: NSObject, NSApplicationDelegate {
+    var window: NSWindow?
+    func presentWorkspace() { preconditionFailure("Shutdown must not activate the workspace") }
+}
 
 @main
 struct ShutdownTests {
