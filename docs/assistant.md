@@ -51,6 +51,8 @@ printf '%s' '{"messages":[{"role":"user","content":"What is pwd?"},{"role":"assi
 
 `assistant models ID` returns a JSON array such as `[{"id":"model-name"}]`, sorted and deduplicated. `assistant models-json ID` accepts `{}` or an object containing `api_key` on standard input. This allows desktop model discovery without putting a key in process arguments. There is no API model discovery for Codex; its CLI selects its own model.
 
+Both JSON entry points also accept `expected: {"connection": CONNECTION, "program": PROGRAM_OR_NULL}`. Long-lived clients should include the complete connection snapshot and assistant program associated with their key and conversation. Rust compares that snapshot with the profile it will actually use before resolving credentials or contacting a service; a mismatch fails without sending. The desktop always supplies this binding and clears stale state after refreshing a changed connection. Omitting it is reserved for CLI callers intentionally selecting the current saved connection at invocation time.
+
 Successful chat output is plain UTF-8 assistant text on stdout, flushed as it arrives. Errors use the CLI's JSON stderr envelope and a nonzero exit. A failed or cancelled turn can have partial text on stdout; callers must not treat partial text as a completed answer.
 
 ## Codex CLI

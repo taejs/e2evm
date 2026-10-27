@@ -40,6 +40,16 @@ pub fn run(store: &Store, id: &str, prompt: &str) -> Result<()> {
 /// Runs one turn, flushing completed assistant messages to stdout as they arrive.
 /// Signal handlers are process-wide, so concurrent calls in one process are refused.
 pub fn run_with_limits(store: &Store, id: &str, prompt: &str, limits: RunLimits) -> Result<()> {
+    let profile = store.load(id)?;
+    run_profile_with_limits(store, &profile, prompt, limits)
+}
+
+pub(crate) fn run_profile_with_limits(
+    store: &Store,
+    profile: &crate::profile::Profile,
+    prompt: &str,
+    limits: RunLimits,
+) -> Result<()> {
     if prompt.trim().is_empty() {
         bail!("Assistant prompt is empty");
     }
@@ -52,8 +62,7 @@ pub fn run_with_limits(store: &Store, id: &str, prompt: &str, limits: RunLimits)
     let _active = ACTIVE
         .try_lock()
         .map_err(|_| anyhow::anyhow!("An assistant turn is already running in this process"))?;
-    let profile = store.load(id)?;
-    let work = store.dir(id)?.join("assistant-work");
+    let work = store.dir(&profile.id)?.join("assistant-work");
     safe_fs::private_dir(&work)?;
     let _lock = safe_fs::Lock::acquire(&work.join(".turn.lock"))?;
     let program = resolve_program(profile.assistant_program.as_deref())?;

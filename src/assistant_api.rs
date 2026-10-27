@@ -24,7 +24,7 @@ pub enum Provider {
     OpenaiCompatible,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Connection {
     pub provider: Provider,
@@ -134,6 +134,8 @@ pub struct ChatInput {
     pub messages: Vec<Message>,
     #[serde(default)]
     pub api_key: Option<String>,
+    #[serde(default)]
+    pub expected: Option<ExpectedAssistant>,
 }
 impl ChatInput {
     pub fn single(prompt: &str) -> Self {
@@ -143,6 +145,7 @@ impl ChatInput {
                 content: prompt.into(),
             }],
             api_key: None,
+            expected: None,
         }
     }
     fn validate(&self) -> Result<()> {
@@ -166,6 +169,25 @@ impl ChatInput {
 pub struct ModelInput {
     #[serde(default)]
     pub api_key: Option<String>,
+    #[serde(default)]
+    pub expected: Option<ExpectedAssistant>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExpectedAssistant {
+    pub connection: Connection,
+    pub program: Option<String>,
+}
+impl ExpectedAssistant {
+    fn check(&self, profile: &crate::profile::Profile) -> Result<()> {
+        if self.connection != profile.assistant_connection.clone().unwrap_or_default()
+            || self.program != profile.assistant_program
+        {
+            bail!("Assistant connection changed; refresh its settings before sending again");
+        }
+        Ok(())
+    }
 }
 pub fn read_input<T: serde::de::DeserializeOwned>(reader: impl Read) -> Result<T> {
     let mut bytes = Vec::new();
@@ -181,7 +203,10 @@ pub fn read_input<T: serde::de::DeserializeOwned>(reader: impl Read) -> Result<T
 pub fn chat(store: &Store, id: &str, input: ChatInput) -> Result<()> {
     input.validate()?;
     let profile = store.load(id)?;
-    let connection = profile.assistant_connection.unwrap_or_default();
+    if let Some(expected) = &input.expected {
+        expected.check(&profile)?;
+    }
+    let connection = profile.assistant_connection.clone().unwrap_or_default();
     if connection.provider == Provider::Codex {
         if input.api_key.is_some() {
             bail!("Codex manages its own authentication; do not supply an API key");
@@ -194,7 +219,12 @@ pub fn chat(store: &Store, id: &str, input: ChatInput) -> Result<()> {
                 serde_json::to_string(&input.messages)?
             )
         };
-        return assistant::run_with_limits(store, id, &prompt, assistant::RunLimits::default());
+        return assistant::run_profile_with_limits(
+            store,
+            &profile,
+            &prompt,
+            assistant::RunLimits::default(),
+        );
     }
     let key = connection.key(input.api_key)?;
     let model = connection
@@ -239,7 +269,11 @@ pub fn chat(store: &Store, id: &str, input: ChatInput) -> Result<()> {
 }
 
 pub fn models(store: &Store, id: &str, input: ModelInput) -> Result<Value> {
-    let connection = store.load(id)?.assistant_connection.unwrap_or_default();
+    let profile = store.load(id)?;
+    if let Some(expected) = &input.expected {
+        expected.check(&profile)?;
+    }
+    let connection = profile.assistant_connection.unwrap_or_default();
     if connection.provider == Provider::Codex {
         bail!(
             "Codex chooses its model through its own CLI; model discovery is available for API providers"

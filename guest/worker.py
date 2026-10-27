@@ -13,6 +13,7 @@ import threading
 import uuid
 
 MAX_OUTPUT = 256 * 1024
+POST_TIMEOUT_DRAIN_SECONDS = 0.5
 ID = re.compile(r"^[a-z0-9-]{1,100}$")
 
 
@@ -68,12 +69,20 @@ def execute(request):
     try:
         while selector.get_map() or process.poll() is None:
             if time.monotonic() > deadline:
+                if timed_out:
+                    # A detached descendant can retain stdout after the original
+                    # process group is killed. Do not wait indefinitely for EOF.
+                    if selector.get_map():
+                        truncated = True
+                        selector.unregister(process.stdout)
+                        process.stdout.close()
+                    break
                 timed_out = True
                 try:
                     os.killpg(process.pid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
-                deadline = float("inf")
+                deadline = time.monotonic() + POST_TIMEOUT_DRAIN_SECONDS
             for key, _ in selector.select(0.1):
                 data = os.read(key.fd, 8192)
                 if not data:

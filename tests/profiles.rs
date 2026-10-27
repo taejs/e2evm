@@ -69,6 +69,36 @@ fn exclusive_locks_release_on_drop() {
 }
 
 #[test]
+fn metadata_updates_preserve_settings_and_readiness_without_taking_vm_lease() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = Store::open(temp.path().join("store")).unwrap();
+    store
+        .create(&Profile::new("test", "Test", 2, 2048).unwrap())
+        .unwrap();
+    let _vm = safe_fs::Lock::acquire(&store.dir("test").unwrap().join("profile.lock")).unwrap();
+    let stale = store.load("test").unwrap();
+    store
+        .update("test", |p| p.assistant_program = Some("new-codex".into()))
+        .unwrap();
+    store.update(&stale.id, |p| p.ready = true).unwrap();
+    assert_eq!(
+        store.load("test").unwrap().assistant_program.as_deref(),
+        Some("new-codex")
+    );
+    store
+        .update("test", |p| {
+            p.assistant_program = Some("another-codex".into())
+        })
+        .unwrap();
+    assert!(store.load("test").unwrap().ready);
+    let metadata =
+        safe_fs::Lock::acquire(&store.dir("test").unwrap().join("metadata.lock")).unwrap();
+    assert!(store.update("test", |p| p.ready = false).is_err());
+    drop(metadata);
+    assert!(store.load("test").unwrap().ready);
+}
+
+#[test]
 fn pinned_directory_survives_guest_path_replacement() {
     let temp = tempfile::tempdir().unwrap();
     let base = temp.path().canonicalize().unwrap();

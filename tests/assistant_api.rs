@@ -49,8 +49,54 @@ impl Fixture {
     }
     fn chat(&self) -> std::process::Output {
         let mut c = self.command(&["chat-json", "test"]).spawn().unwrap();
-        c.stdin.take().unwrap().write_all(br#"{"messages":[{"role":"user","content":"first"},{"role":"assistant","content":"previous"},{"role":"user","content":"second"}],"api_key":"secret-fixture"}"#).unwrap();
+        let profile = self.store.load("test").unwrap();
+        let input = json!({"messages":[{"role":"user","content":"first"},{"role":"assistant","content":"previous"},{"role":"user","content":"second"}],"api_key":"secret-fixture", "expected":{"connection":profile.assistant_connection.unwrap_or_default(),"program":profile.assistant_program}});
+        c.stdin
+            .take()
+            .unwrap()
+            .write_all(&serde_json::to_vec(&input).unwrap())
+            .unwrap();
         c.wait_with_output().unwrap()
+    }
+}
+
+#[test]
+fn stale_desktop_connection_sends_neither_credentials_nor_history() {
+    let f = Fixture::new();
+    f.configure("openai-compatible", "http://127.0.0.1:1");
+    let old = f.store.load("test").unwrap();
+    let expected =
+        json!({"connection":old.assistant_connection.unwrap(), "program":old.assistant_program});
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    f.configure(
+        "openai-compatible",
+        &format!("http://{}", listener.local_addr().unwrap()),
+    );
+    for args in [
+        vec!["chat-json", "test"],
+        vec!["assistant", "models-json", "test"],
+    ] {
+        let mut input = json!({"expected":expected,"api_key":"server-a-secret"});
+        if args[0] == "chat-json" {
+            input["messages"] = json!([{"role":"user","content":"server-a-private-history"}]);
+        }
+        let mut child = f.command(&args).spawn().unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(&serde_json::to_vec(&input).unwrap())
+            .unwrap();
+        let result = child.wait_with_output().unwrap();
+        assert!(!result.status.success());
+        let error = String::from_utf8_lossy(&result.stderr);
+        assert!(error.contains("Assistant connection changed"), "{error}");
+        assert!(!error.contains("server-a-secret") && !error.contains("server-a-private-history"));
+        assert_eq!(
+            listener.accept().unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
     }
 }
 fn server(status: &str, body: &str) -> (String, mpsc::Receiver<String>, thread::JoinHandle<()>) {

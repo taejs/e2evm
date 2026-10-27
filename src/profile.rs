@@ -179,6 +179,14 @@ impl Store {
             &serde_json::to_vec_pretty(profile)?,
         )
     }
+    /// Change only the requested fields under a short metadata lease, independent of VM ownership.
+    pub fn update(&self, id: &str, change: impl FnOnce(&mut Profile)) -> Result<Profile> {
+        let _lock = safe_fs::Lock::acquire(&self.dir(id)?.join("metadata.lock"))?;
+        let mut profile = self.load(id)?;
+        change(&mut profile);
+        self.save(&profile)?;
+        Ok(profile)
+    }
     pub fn list(&self) -> Result<Vec<Profile>> {
         let mut profiles = Vec::new();
         for entry in fs::read_dir(self.root.join("profiles"))? {

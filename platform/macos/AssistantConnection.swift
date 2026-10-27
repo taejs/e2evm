@@ -1,7 +1,7 @@
 import Foundation
 
-struct AssistantConnection: Decodable, Equatable {
-    enum Provider: String, CaseIterable, Identifiable, Decodable {
+struct AssistantConnection: Codable, Equatable {
+    enum Provider: String, CaseIterable, Identifiable, Codable {
         case codex
         case ollama
         case compatible = "openai-compatible"

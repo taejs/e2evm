@@ -153,9 +153,9 @@ fn run() -> Result<()> {
         ("profile", "list") => json!(store.list()?),
         ("profile", "show") => store.descriptor(arg(2)?)?,
         ("profile", "assistant") => {
-            let mut profile = store.load(arg(2)?)?;
-            profile.assistant_program = Some(arg(3)?.to_string());
-            store.save(&profile)?;
+            let program = arg(3)?.to_string();
+            let profile =
+                store.update(arg(2)?, |profile| profile.assistant_program = Some(program))?;
             store.descriptor(&profile.id)?
         }
         ("profile", "connection") => {
@@ -181,9 +181,9 @@ fn run() -> Result<()> {
                 i += 2;
             }
             connection.validate()?;
-            let mut profile = store.load(arg(2)?)?;
-            profile.assistant_connection = Some(connection);
-            store.save(&profile)?;
+            let profile = store.update(arg(2)?, |profile| {
+                profile.assistant_connection = Some(connection)
+            })?;
             store.descriptor(&profile.id)?
         }
         ("profile", "create") => {

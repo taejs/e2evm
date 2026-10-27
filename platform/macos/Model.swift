@@ -96,6 +96,7 @@ final class WorkspaceModel: ObservableObject {
     private var polling = false
     private var terminationCompletion: (() -> Void)?
     @Published var creating = false
+    @Published private(set) var shuttingDown = false
 
     func session(_ id: String) -> ProfileSession {
         if let existing = sessions[id] { return existing }
@@ -107,7 +108,8 @@ final class WorkspaceModel: ObservableObject {
         let state = session(id), prompt = session(id).prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !state.chatBusy, !prompt.isEmpty else { return }
         let userMessage = ["role": "user", "content": prompt]
-        var request: [String: Any] = ["messages": state.history + [userMessage]]
+        guard let expected = expectedAssistant(id) else { errorMessage = "Refresh assistant settings before sending."; return }
+        var request: [String: Any] = ["messages": state.history + [userMessage], "expected": expected]
         if !state.apiKey.isEmpty { request["api_key"] = state.apiKey }
         guard let input = try? JSONSerialization.data(withJSONObject: request), input.count <= 64 * 1024 else {
             errorMessage = "This conversation exceeds 64 KiB. Clear the conversation or shorten your message."; return
@@ -118,7 +120,7 @@ final class WorkspaceModel: ObservableObject {
         let messageID = state.messages.last!.id
         launch(["chat-json", id], key: "chat:\(id)", input: input, output: { text in
             if let index = state.messages.firstIndex(where: { $0.id == messageID }) { state.messages[index].text = text }
-        }) { result in
+        }) { [weak self] result in
             state.chatBusy = false
             if let index = state.messages.firstIndex(where: { $0.id == messageID }) {
                 switch result {
@@ -129,9 +131,18 @@ final class WorkspaceModel: ObservableObject {
                 case .failure(let error):
                     state.messages[index].text += (state.messages[index].text.isEmpty ? "" : "\n\n") + error.localizedDescription
                     state.messages[index].failed = true
+                    self?.errorMessage = error.localizedDescription
+                    self?.reload()
                 }
             }
         }
+    }
+
+    private func expectedAssistant(_ id: String) -> [String: Any]? {
+        guard let profile = profiles.first(where: { $0.id == id }),
+              let data = try? JSONEncoder().encode(profile.connection),
+              let connection = try? JSONSerialization.jsonObject(with: data) else { return nil }
+        return ["connection": connection, "program": profile.assistant_program as Any? ?? NSNull()]
     }
 
     func clearConversation(_ id: String) {
@@ -206,6 +217,14 @@ final class WorkspaceModel: ObservableObject {
                         self.clearConversation(id)
                     }
                     self.reload()
+                    guard let current = self.profiles.first(where: { $0.id == id }),
+                          current.connection == connection,
+                          connection.provider != .codex || current.assistant_program == program else {
+                        self.session(id).apiKey = ""
+                        self.clearConversation(id)
+                        self.errorMessage = "Assistant connection changed while saving. Review its settings before sending."
+                        completion(false); return
+                    }
                     self.session(id).apiKey = apiKey
                     completion(true)
                 case .failure(let error): self.errorMessage = error.localizedDescription; completion(false)
@@ -223,8 +242,11 @@ final class WorkspaceModel: ObservableObject {
     }
 
     func fetchModels(_ id: String, completion: @escaping ([String]?) -> Void) {
+        guard let expected = expectedAssistant(id) else { errorMessage = "Refresh assistant settings before loading models."; completion(nil); return }
         let apiKey = session(id).apiKey
-        let input = try? JSONSerialization.data(withJSONObject: apiKey.isEmpty ? [:] : ["api_key": apiKey])
+        var request: [String: Any] = ["expected": expected]
+        if !apiKey.isEmpty { request["api_key"] = apiKey }
+        let input = try? JSONSerialization.data(withJSONObject: request)
         launch(["assistant", "models-json", id], key: "models:\(id)", input: input) { [weak self] result in
             switch result {
             case .success(let data):
@@ -232,7 +254,7 @@ final class WorkspaceModel: ObservableObject {
                     self?.errorMessage = "The provider returned an invalid model list."; completion(nil); return
                 }
                 completion(models.compactMap { $0["id"] }.sorted())
-            case .failure(let error): self?.errorMessage = error.localizedDescription; completion(nil)
+            case .failure(let error): self?.errorMessage = error.localizedDescription; self?.reload(); completion(nil)
             }
         }
     }
@@ -250,6 +272,7 @@ final class WorkspaceModel: ObservableObject {
 
     var preparing: Bool { sessions.values.contains { $0.action == "prepare" } }
     func finishProcesses(_ completion: @escaping () -> Void) {
+        shuttingDown = true
         timer?.invalidate()
         terminationCompletion = completion
         jobs.values.forEach { $0.cancel() }
@@ -259,6 +282,7 @@ final class WorkspaceModel: ObservableObject {
     private func launch(_ arguments: [String], key: String, acceptFailureJSON: Bool = false, input: Data? = nil,
                         output: ((String) -> Void)? = nil, diagnostic: ((String) -> Void)? = nil,
                         completion: @escaping (Result<Data, Error>) -> Void) {
+        guard !shuttingDown else { completion(.failure(HarborError("Workspace is shutting down; new operations are unavailable."))); return }
         guard jobs[key] == nil else { completion(.failure(HarborError("This operation is already running."))); return }
         let job = CLIJob(), stdout = Pipe(), stderr = Pipe()
         job.process.executableURL = URL(fileURLWithPath: cli); job.process.arguments = arguments
@@ -364,6 +388,7 @@ final class WorkspaceModel: ObservableObject {
     }
     var hasActiveMachines: Bool { machines.values.contains { $0.state != "stopped" } }
     func perform(_ action: String, id: String) {
+        guard !shuttingDown else { errorMessage = "Workspace is shutting down; new operations are unavailable."; return }
         do { try machine(id, refreshStopped: action == "start").perform(action) { [weak self] result in
             if case .failure(let error) = result { self?.errorMessage = error.localizedDescription }
             self?.revision += 1
@@ -371,6 +396,7 @@ final class WorkspaceModel: ObservableObject {
     }
     func handle(_ request: [String: Any], completion: @escaping ([String: Any]) -> Void) {
         do {
+            guard !shuttingDown else { throw HarborError("Workspace is shutting down; new operations are unavailable.") }
             guard request["version"] as? Int == 1, let id = request["profile"] as? String,
                   let action = request["action"] as? String else { throw HarborError("Expected version 1, profile and action") }
             let payload = request["payload"] as? [String: Any] ?? [:]

@@ -70,7 +70,6 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { window?.makeKeyAndOrderFront(nil); return true }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if terminationReady { return .terminateNow }
         guard let model else { return .terminateNow }
         if model.hasActiveMachines || model.preparing || model.creating {
             model.errorMessage = model.hasActiveMachines
@@ -79,6 +78,7 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             window.makeKeyAndOrderFront(nil)
             return .terminateCancel
         }
+        if terminationReady { return .terminateNow }
         if terminationPending { return .terminateCancel }
         terminationPending = true
         // Keep the normal event loop alive while Rust finishes subprocess-group cleanup.

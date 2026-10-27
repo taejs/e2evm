@@ -45,6 +45,7 @@ struct WorkspaceView: View {
         .background(HarborTheme.canvas).tint(HarborTheme.accent)
         .frame(minWidth: 1120, minHeight: 740).preferredColorScheme(.dark)
         .sheet(isPresented: $showCreate) { CreateProfileSheet(model: model) }
+        .disabled(model.shuttingDown)
         .onChange(of: model.selectedID) { _, _ in model.refreshStatus() }
     }
 
