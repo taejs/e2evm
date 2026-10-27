@@ -15,7 +15,12 @@ uncommitted host files are not automatically available in the guest. If the
 required target cannot be reached or transferred, report the setup dependency;
 do not silently switch to a host browser or a different deployment.
 
-Return assertions, the guest command result, and screenshots when useful.
+Always return assertions, the guest command result, and actual screenshots.
+Capture the final state and any failure before closing the test tab. Transfer
+images to the host, inspect them, and embed or attach them in the final reply;
+paths alone are not a completed delivery. If capture or delivery fails, report
+the test outcome separately and mark screenshot evidence blocked with its
+reason. Do not report the overall task complete without viewable screenshots.
 Preserve unrelated browser tabs and leave the VM running. Use only test data
 and accounts authorized for the task. Existing project test commands and
 dependency versions still apply.

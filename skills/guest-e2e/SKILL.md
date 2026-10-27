@@ -1,6 +1,6 @@
 ---
 name: guest-e2e
-description: Run browser E2E tests in a E2EVM guest when the user requests E2EVM or its isolated browser workspace. Use the guest CLI, reuse installed browser tools, and return test evidence. Does not select E2EVM for unrelated browser tasks.
+description: Run browser E2E tests in an E2EVM guest when the user requests E2EVM or its isolated browser workspace. Use the guest CLI and return assertions with actual screenshots. Does not select E2EVM for unrelated browser tasks.
 ---
 
 # Guest E2E
@@ -30,10 +30,17 @@ The local repository and host `localhost` are **not** automatically available in
 - Use guest headless execution if requested or appropriate to the suite. The default installation supplies Python Playwright and Google Chrome; it does not guarantee Playwright's downloaded Chromium, Firefox, WebKit, or an npm Playwright dependency. Install only what the chosen suite requires.
 - Prefer semantic locators and assertions. For a visual-only control, the CLI also provides guest-scoped input and screenshots; inspect current help and the screenshot before choosing coordinates. Do not use global host input or open a host browser to get around a guest failure.
 
-The [browser smoke recipe](references/browser-smoke.md) shows a complete assertion, a guest screenshot returned as a host artifact, and optional native workspace capture. Adapt its assertions to the actual test. A screenshot alone is not a passed test.
+The [browser smoke recipe](references/browser-smoke.md) shows a complete assertion, a guest screenshot returned as a host artifact, and optional native workspace capture. Adapt its assertions to the actual test.
 
 ## Finish with evidence
 
 Read the command's JSON result, including `ok`, `exit_code`, `timed_out`, and `truncated`. CLI failure or `ok: false` is a failure even if the output includes a success-looking line. When an outcome is unknown, inspect state before repeating a mutation; do not blindly replay a form submission or package install.
 
-Return the target profile and URL, checks performed, passed/failed/blocked result, relevant output, and screenshot paths. Distinguish guest paths from host artifacts. Remove only disposable state created by your test, and leave the user's VM available unless the task calls for shutdown. Testing authority does not authorize publishing, purchases, production data changes, or signing into unrelated accounts.
+Every browser E2E report must include actual screenshots:
+
+- Capture each requested flow's final state, and capture a failure state before closing its tab or cleaning up. This applies to headed and headless tests. Use pixels from the tested guest browser; do not substitute an illustration or an unrelated run.
+- Transfer captures to fresh host artifact files, open them with the client's image viewer, and check that they show the relevant state clearly. A guest-only path, blank image, or screenshot command without an inspected image is incomplete evidence.
+- Embed or attach the inspected images in the final reply using the client's supported image format. For Markdown clients, use `![description](/absolute/host/path/page.jpg)` with the actual absolute host path. Include a short caption explaining what each image proves. Listing paths or saying "screenshot saved" does not deliver the image.
+- If capture, transfer, inspection, or image delivery fails, report the test outcome separately and mark screenshot evidence **blocked** with the reason. Do not claim the overall task is complete. Include a diagnostic capture if available, label it as such, and do not present it as a completed browser flow.
+
+Alongside the images, return the target profile, URL and source revision, checks performed, passed/failed/blocked result, and relevant command output. A screenshot alone does not prove assertions passed. Remove only disposable state created by your test, and leave the user's VM available unless the task calls for shutdown. Testing authority does not authorize publishing, purchases, production data changes, or signing into unrelated accounts. Inspect captures for private data before sharing them outside the user's requested audience.

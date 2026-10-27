@@ -59,6 +59,8 @@ First check the browser connection using the skill's self-contained fixture:
 
 For your own application, supply a URL reachable from the guest and its expected results. Passing the fixture verifies the integration, not your application. [More prompts](../examples/prompts.md) cover a complete flow and missing dependencies. The skill contains a [runnable smoke recipe](../skills/guest-e2e/references/browser-smoke.md) that produces host-side evidence.
 
+Screenshots are required in every browser E2E report. The agent captures the final state and any failure before cleanup, transfers the images to the host, opens them for inspection, and embeds or attaches them in its reply with captions. A path or "screenshot saved" message alone is insufficient. If capture or delivery fails, it reports the test outcome separately, marks screenshot evidence blocked, and does not claim the whole task is complete. These are instructions for the external agent; the app's chat panel does not attach images automatically.
+
 Your agent can install needed tools **inside the guest**, using existing Ubuntu, npm, or Python tools. It first checks what is installed and follows your project's dependency versions. Long installs and suites run as supervised guest jobs because each CLI command has a 60-second limit.
 
 ## What is and is not connected

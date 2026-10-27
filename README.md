@@ -49,7 +49,7 @@ e2evm stop ubuntu
 
 ## Give an E2E agent its own workspace
 
-Ship the test, keep working on your Mac. The [agent kit](docs/agents.md) includes a portable skill, project instructions, and copyable prompts for an existing coding agent. It explains how to start the selected guest, run Playwright, install task dependencies inside that guest, and return assertions and screenshots.
+Ship the test, keep working on your Mac. The [agent kit](docs/agents.md) includes a portable skill, project instructions, and copyable prompts for an existing coding agent. It explains how to start the selected guest, run Playwright, install task dependencies inside that guest, and return assertions with actual screenshots attached. Screenshot delivery is required for a completed report; a capture failure must be reported as incomplete evidence.
 
 The [instructions](examples/agent-instructions.md) can be added to a project's `AGENTS.md` or `CLAUDE.md`. The [prompts](examples/prompts.md) cover a smoke test, a complete application flow, and missing dependencies. Your agent invokes the CLI; this does not turn the assistant chat panel into an automatic tool runner.
 
