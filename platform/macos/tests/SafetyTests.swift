@@ -8,6 +8,14 @@ struct SafetyTests {
         throw HarborError("Expected failure: \(label)")
     }
     static func main() throws {
+        let selectAll = try GuestKeyboard.named("ctrl+a")
+        assert(selectAll.0 == 0 && selectAll.2.contains(.control))
+        let uppercase = try GuestKeyboard.character("H")
+        assert(uppercase.0 == 4 && uppercase.2.contains(.shift))
+        let punctuation = try GuestKeyboard.character("!")
+        assert(punctuation.0 == 18 && punctuation.2.contains(.shift))
+        try expectFailure("unknown modifier") { _ = try GuestKeyboard.named("super+enter") }
+        try expectFailure("non-ASCII scan code") { _ = try GuestKeyboard.character("한") }
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("harborvm-lock-tests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: root) }

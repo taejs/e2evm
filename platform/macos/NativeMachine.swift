@@ -155,32 +155,28 @@ final class NativeMachine: NSObject, VZVirtualMachineDelegate {
                 guard let value = payload["text"] as? String, value.utf8.count <= 16384 else { throw HarborError("Text must contain at most 16384 UTF-8 bytes") }
                 // Virtual keyboards consume scan codes, not arbitrary Unicode strings.
                 // The guest command channel supports full Unicode without keyboard-layout assumptions.
-                let plain: [Character: UInt16] = ["a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9, "b": 11, "q": 12, "w": 13, "e": 14, "r": 15, "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21, "6": 22, "5": 23, "=": 24, "9": 25, "7": 26, "-": 27, "8": 28, "0": 29, "]": 30, "o": 31, "u": 32, "[": 33, "i": 34, "p": 35, "l": 37, "j": 38, "'": 39, "k": 40, ";": 41, "\\": 42, ",": 43, "/": 44, "n": 45, "m": 46, ".": 47, "`": 50, " ": 49, "\n": 36, "\r": 36, "\t": 48]
-                let shifted: [Character: Character] = ["!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7", "*": "8", "(": "9", ")": "0", "_": "-", "+": "=", "{": "[", "}": "]", "|": "\\", ":": ";", "\"": "'", "<": ",", ">": ".", "?": "/", "~": "`"]
-                strokes = try value.map { character in
-                    if let code = plain[character] { return (code, String(character), []) }
-                    if let base = shifted[character], let code = plain[base] { return (code, String(character), .shift) }
-                    let lower = String(character).lowercased()
-                    if lower.count == 1, character.isASCII, let code = plain[Character(lower)], character.isUppercase { return (code, String(character), .shift) }
-                    throw HarborError("Text input supports a US ASCII keyboard; use guest exec for Unicode text")
-                }
+                strokes = try value.map { try GuestKeyboard.character($0) }
             } else {
-                let keys: [String: (UInt16, String)] = ["enter": (36, "\r"), "tab": (48, "\t"), "escape": (53, "\u{1b}"), "backspace": (51, "\u{8}"), "up": (126, "\u{f700}"), "down": (125, "\u{f701}"), "left": (123, "\u{f702}"), "right": (124, "\u{f703}"), "space": (49, " ")]
-                guard let name = payload["key"] as? String, let value = keys[name.lowercased()] else { throw HarborError("Unsupported guest key") }
-                strokes = [(value.0, value.1, [])]
+                guard let name = payload["key"] as? String else { throw HarborError("A key name is required") }
+                strokes = [try GuestKeyboard.named(name)]
             }
             for (key, characters, flags) in strokes {
-                if flags.contains(.shift) { try shiftEvent(down: true) }
+                let modifiers: [(NSEvent.ModifierFlags, UInt16)] = [(.control, 59), (.option, 58), (.shift, 56), (.command, 55)]
+                var held: [(NSEvent.ModifierFlags, UInt16)] = []
+                defer { for (flag, code) in held.reversed() { try? modifierEvent(code: code, flags: flag, down: false) } }
+                for (flag, code) in modifiers where flags.contains(flag) {
+                    try modifierEvent(code: code, flags: flag, down: true)
+                    held.append((flag, code))
+                }
                 for type in [NSEvent.EventType.keyDown, .keyUp] {
                     guard let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: view.window?.windowNumber ?? 0, context: nil, characters: characters, charactersIgnoringModifiers: characters.lowercased(), isARepeat: false, keyCode: key) else { throw HarborError("Could not construct guest key event") }
                     if type == .keyDown { view.keyDown(with: event) } else { view.keyUp(with: event) }
                 }
-                if flags.contains(.shift) { try shiftEvent(down: false) }
             }
         }
     }
-    private func shiftEvent(down: Bool) throws {
-        guard let event = NSEvent.keyEvent(with: down ? .keyDown : .keyUp, location: .zero, modifierFlags: down ? .shift : [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: view.window?.windowNumber ?? 0, context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: 56) else { throw HarborError("Could not construct guest Shift event") }
+    private func modifierEvent(code: UInt16, flags: NSEvent.ModifierFlags, down: Bool) throws {
+        guard let event = NSEvent.keyEvent(with: down ? .keyDown : .keyUp, location: .zero, modifierFlags: down ? flags : [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: view.window?.windowNumber ?? 0, context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: code) else { throw HarborError("Could not construct guest modifier event") }
         if down { view.keyDown(with: event) } else { view.keyUp(with: event) }
     }
 }
