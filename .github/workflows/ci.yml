@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  portable:
+    name: Rust and guest worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Lint Rust
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Test Rust
+        run: cargo test --locked
+      - name: Test guest worker
+        run: python3 tests/guest_worker.py
+      - name: Check shell syntax
+        run: |
+          for script in guest/setup.sh guest/setup-macos.sh scripts/build-macos.sh platform/macos/tests/run.sh; do
+            sh -n "$script"
+          done
+
+  native:
+    name: Apple Silicon app
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+      - name: Check runner architecture
+        run: test "$(uname -m)" = arm64
+      - name: Test native ownership and keyboard handling
+        run: sh platform/macos/tests/run.sh
+      - name: Build and sign app
+        run: sh scripts/build-macos.sh
+      - name: Verify app signature and entitlement
+        run: |
+          codesign --verify --strict dist/HarborVM.app
+          codesign --display --entitlements - dist/HarborVM.app

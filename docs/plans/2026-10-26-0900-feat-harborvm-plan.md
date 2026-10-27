@@ -41,11 +41,11 @@ The predecessor is tied to private blog workflows and has a decorative interface
 
 ### Scope Boundaries
 
-The first release runs Linux guests on Apple Silicon/macOS 14+. Existing macOS guests remain untouched; creating macOS or Windows guests, snapshot chains, host filesystem browsing, automatic agent tool execution, and cloud orchestration are deferred. The console runs guest commands; an interactive PTY is a later feature and must not be implied by the interface.
+The release runs Linux and macOS guests on Apple Silicon/macOS 14+. macOS guest installation uses Apple restore images on supported Apple hardware; the user completes guest setup. Existing machines remain untouched. Windows guests, snapshot chains, general host filesystem browsing, automatic assistant tool execution, and cloud orchestration remain deferred. The console runs guest commands; an interactive PTY is a later feature and must not be implied by the interface.
 
 ### Assumptions
 
-The project name is HarborVM. Orca means the open-source edvin/orca container desktop for visual inspiration; this is an assumption, not an identity claim. Use original layouts/assets, with references documented. Both edvin/orca and andrewmcoupe/orca are verified MIT references; no code or assets are copied. A fresh tiny test guest can use cached public Ubuntu downloads and at most 2 GB RAM; no production disk clone is needed.
+HarborVM is a temporary implementation name. The user rejected it for launch and is choosing a Test-prefixed name; do not publish a repository or final branding until that choice is settled. Orca means the open-source edvin/orca container desktop for visual inspiration; this is an assumption, not an identity claim. Use original layouts/assets, with references documented. Both edvin/orca and andrewmcoupe/orca are verified MIT references; no code or assets are copied. A fresh tiny test guest can use cached public Ubuntu downloads and at most 2 GB RAM; no production disk clone is needed.
 
 ## Planning Contract
 
@@ -172,3 +172,22 @@ Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo
 ## Definition of Done
 
 All six units work and are committed in reviewable increments. The actual guest lifecycle, guest command path, input isolation and local CLI assistant are verified, with real screenshots. English public documentation and CI are present. Abandoned experimental code is removed. Publication ends with a taejs public URL and open PR, or a precise authentication blocker after all independent work is complete. An incomplete simulation is never completion.
+
+## User-directed scope additions — 2026-10-27
+
+- R12 / U9: macOS guests: official restore-image download or explicit local IPSW, fresh disk/identity/auxiliary storage, visible setup/boot, supported-host checks. Do not distribute Apple OS images or automate agreement to guest setup terms. Keep Apple licensing notes scoped to local development/testing on Apple hardware.
+- R13 / U10: setup components default checked and individually optional. Persist choices; explain dependencies (desktop → browser → Playwright, Python development tools → Playwright); deselect dependents visibly. Base guest command transport is required and described separately.
+- R14 / U11: distribute a self-contained guest E2E skill, project instructions for existing agents, and copyable prompts. Reuse ordinary guest package managers/Playwright; no accidental host execution, imaginary sync/port-forward commands, or implied chat-panel tool execution. Verify examples against a real guest.
+- R15 / U12: 30–45-second English launch video combines motion graphics with genuine recorded development/E2E on a real open-source application. Investigate OpenCut Classic as requested; retain reproducible test artifacts and accurate captions. Astra handles video composition, a separate marketing agent handles presentation/distribution.
+- R16 / U13: compelling GitHub repository/profile presentation and platform-specific launch assets for Product Hunt and X @taeshindev. User authorizes marketing publication after concrete identity/artifacts are available. Existing Gatsby blog destination is unconfirmed and publication there is on hold. HN official guidelines currently prohibit generated text and automated posting: deliver factual briefing and runnable links for the human to write/post. No unsolicited bulk community posting. No PR merge.
+
+### Verification added
+
+- Stopped native app quit regression passed (exit 0 in 0.02 seconds) after replacing nested termination loop.
+- Actual guest click, Ctrl+A, and ASCII typing produced the exact expected browser input value; host pointer coordinates and pasteboard change count were identical before/after.
+- Browser test cookie survived actual graceful VM stop and restart.
+- macOS installation completed into a fresh disk and rendered Setup Assistant; guest account creation and post-login bootstrap remain unverified.
+- Fresh Linux `--without all` bootstrap completed without optional desktop/browser/development packages; core guest execution worked.
+- OpenCut Classic project creation/rename validation passed 12 assertions, including persistence after reload; two repeat runs and an actual native recording passed. The 42-second English motion/recording edit is complete with a temporary in-app name; final naming/publication remains pending.
+- Starting and selecting a validation VM preserved the foreground host app, pointer coordinates and clipboard change count.
+- Release review `20261027-release-6ac815b0` completed all nine selected lenses and independently validated five findings. Follow-up fixes cover recoverable artifact promotion, serialized metadata field updates, connection-bound credentials/history, bounded output draining and shutdown admission. Targeted regression evidence belongs in `docs/validation.md`.
