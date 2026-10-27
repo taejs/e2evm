@@ -15,6 +15,36 @@ fn profiles_round_trip_and_never_overwrite() {
         assert!(store.load(id).is_err());
     }
 }
+
+#[test]
+fn old_profiles_keep_defaults_and_optional_dependencies_are_validated() {
+    use harborvm::profile::{GuestOS, SetupOptions};
+    let legacy = r#"{"version":1,"id":"old","name":"Old","cpus":2,"memory_mib":2048,"disk_gib":24,"ready":false}"#;
+    let profile: Profile = serde_json::from_str(legacy).unwrap();
+    assert_eq!(profile.guest_os, GuestOS::Linux);
+    assert!(profile.setup.playwright && profile.setup.desktop);
+    let mut setup = SetupOptions {
+        browser: false,
+        ..SetupOptions::default()
+    };
+    assert!(setup.validate().is_err());
+    setup.playwright = false;
+    assert!(setup.validate().is_ok());
+    setup = SetupOptions {
+        desktop: false,
+        browser: false,
+        python: false,
+        node: false,
+        playwright: false,
+    };
+    assert!(setup.validate().is_ok());
+    let mut mac = profile;
+    mac.guest_os = GuestOS::Macos;
+    assert!(mac.validate().is_err());
+    mac.memory_mib = 4096;
+    mac.disk_gib = 64;
+    assert!(mac.validate().is_ok());
+}
 #[test]
 fn links_and_oversized_files_are_rejected() {
     let temp = tempfile::tempdir().unwrap();

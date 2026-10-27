@@ -11,6 +11,8 @@ struct MachineProfile: Decodable, Identifiable {
     let memory_mib: Int
     let disk_gib: Int
     let ready: Bool
+    let guest_os: String?
+    var guestOS: String { guest_os ?? "linux" }
     let assistant_program: String?
     let assistant_connection: AssistantConnection?
     var connection: AssistantConnection { assistant_connection ?? .codex }
@@ -173,9 +175,11 @@ final class WorkspaceModel: ObservableObject {
         }
     }
 
-    func create(id: String, name: String, cpus: Int, memory: Int, completion: @escaping (Bool) -> Void) {
+    func create(id: String, name: String, cpus: Int, memory: Int, guestOS: String = "linux", without: [String] = [], completion: @escaping (Bool) -> Void) {
         guard !creating else { return }; creating = true
-        launch(["profile", "create", id, "--name", name, "--cpus", String(cpus), "--memory", String(memory)], key: "create") { [weak self] result in
+        var arguments = ["profile", "create", id, "--name", name, "--cpus", String(cpus), "--memory", String(memory), "--os", guestOS]
+        if !without.isEmpty { arguments += ["--without", without.joined(separator: ",")] }
+        launch(arguments, key: "create") { [weak self] result in
             self?.creating = false
             switch result {
             case .success: self?.reload(); self?.selectedID = id; completion(true)
@@ -397,7 +401,7 @@ final class WorkspaceModel: ObservableObject {
             let machine = try machine(id, refreshStopped: action == "start")
             switch action {
             case "status": completion(machine.status)
-            case "select": selectedID = id; NSApp.activate(ignoringOtherApps: true); completion(machine.status)
+            case "select": selectedID = id; completion(machine.status)
             case "screenshot": completion(["ok": true, "png_base64": try machine.screenshot().base64EncodedString()])
             case "click", "key", "text": try machine.input(action, payload: payload); completion(machine.status)
             default: try machine.perform(action) { result in

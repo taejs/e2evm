@@ -15,7 +15,7 @@ xcrun swiftc -module-cache-path "$ROOT/target/swift-cache" -swift-version 5 -O -
   platform/macos/*.swift -o "$APP/Contents/MacOS/HarborVMDesktop"
 cp target/release/harborvm "$APP/Contents/MacOS/harborvm"
 cp platform/macos/Info.plist "$APP/Contents/Info.plist"
-cp guest/worker.py guest/setup.sh guest/welcome.html "$APP/Contents/Resources/guest/"
+cp guest/worker.py guest/setup.sh guest/setup-macos.sh guest/welcome.html "$APP/Contents/Resources/guest/"
 codesign --force --sign - "$APP/Contents/MacOS/harborvm"
 codesign --force --sign - --entitlements platform/macos/HarborVM.entitlements "$APP"
 codesign --verify --strict "$APP"

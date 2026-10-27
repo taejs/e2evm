@@ -5,6 +5,46 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GuestOS {
+    #[default]
+    Linux,
+    Macos,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct SetupOptions {
+    pub desktop: bool,
+    pub browser: bool,
+    pub python: bool,
+    pub node: bool,
+    pub playwright: bool,
+}
+impl Default for SetupOptions {
+    fn default() -> Self {
+        Self {
+            desktop: true,
+            browser: true,
+            python: true,
+            node: true,
+            playwright: true,
+        }
+    }
+}
+impl SetupOptions {
+    pub fn validate(&self) -> Result<()> {
+        if self.browser && !self.desktop {
+            bail!("The browser needs a desktop. Enable desktop or disable browser and Playwright.");
+        }
+        if self.playwright && (!self.browser || !self.python) {
+            bail!("The bundled Playwright setup needs browser and Python development tools.");
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
@@ -15,6 +55,10 @@ pub struct Profile {
     pub memory_mib: u32,
     pub disk_gib: u32,
     pub ready: bool,
+    #[serde(default)]
+    pub guest_os: GuestOS,
+    #[serde(default)]
+    pub setup: SetupOptions,
     #[serde(default)]
     pub assistant_program: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -30,6 +74,8 @@ impl Profile {
             memory_mib,
             disk_gib: 24,
             ready: false,
+            guest_os: GuestOS::Linux,
+            setup: SetupOptions::default(),
             assistant_program: None,
             assistant_connection: None,
         };
@@ -56,6 +102,12 @@ impl Profile {
         if !(8..=512).contains(&self.disk_gib) {
             bail!("Disk size must be 8–512 GiB");
         }
+        if self.guest_os == GuestOS::Macos
+            && (self.cpus < 2 || self.memory_mib < 4096 || self.disk_gib < 64)
+        {
+            bail!("macOS needs at least 2 CPU cores, 4096 MiB memory and a 64 GiB disk");
+        }
+        self.setup.validate()?;
         if let Some(connection) = &self.assistant_connection {
             connection.validate()?;
         }

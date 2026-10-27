@@ -73,10 +73,7 @@ pub fn request(store: &Store, id: &str, action: &str, payload: Value) -> Result<
     }
 }
 
-pub fn launch(store: &Store) -> Result<()> {
-    if !cfg!(target_os = "macos") {
-        bail!("The VM workspace requires macOS on Apple Silicon");
-    }
+pub fn executable() -> Result<PathBuf> {
     let current = std::env::current_exe()?;
     let mut candidates = Vec::new();
     if let Some(path) = std::env::var_os("HARBORVM_APP") {
@@ -87,7 +84,7 @@ pub fn launch(store: &Store) -> Result<()> {
         candidates.push(parent.join("HarborVM.app"));
         candidates.push(parent.join("../../dist/HarborVM.app"));
     }
-    let executable = candidates
+    candidates
         .into_iter()
         .map(|path| {
             if path.extension().is_some_and(|ext| ext == "app") {
@@ -99,14 +96,28 @@ pub fn launch(store: &Store) -> Result<()> {
         .find(|path| path.is_file())
         .context(
             "Cannot find HarborVM.app; build it with scripts/build-macos.sh or set HARBORVM_APP",
-        )?;
+        )
+}
+
+pub fn launch(store: &Store, activate: bool) -> Result<()> {
+    if !cfg!(target_os = "macos") {
+        bail!("The VM workspace requires macOS on Apple Silicon");
+    }
+    let executable = executable()?;
+    let current = std::env::current_exe()?;
     let socket = store.root.join("control.sock");
     #[cfg(unix)]
     if UnixStream::connect(&socket).is_ok() {
-        request(store, "workspace", "activate", json!({}))?;
+        if activate {
+            request(store, "workspace", "activate", json!({}))?;
+        }
         return Ok(());
     }
-    let mut child = Command::new(executable)
+    let mut command = Command::new(executable);
+    if !activate {
+        command.arg("--background");
+    }
+    let mut child = command
         .arg("--home")
         .arg(&store.root)
         .arg("--cli")

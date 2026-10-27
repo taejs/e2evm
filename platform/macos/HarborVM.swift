@@ -30,10 +30,12 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             window.titlebarAppearsTransparent = true
             window.backgroundColor = NSColor(red: 0.065, green: 0.073, blue: 0.080, alpha: 1)
             window.contentView = NSHostingView(rootView: WorkspaceView(model: model))
-            window.center(); window.makeKeyAndOrderFront(nil)
+            window.center()
+            if arguments.contains("--background") { window.orderBack(nil) }
+            else { window.makeKeyAndOrderFront(nil) }
             installMenus()
             server?.start()
-            NSApp.activate(ignoringOtherApps: true)
+            if !arguments.contains("--background") { NSApp.activate(ignoringOtherApps: true) }
         } catch {
             fputs("HarborVM: \(error.localizedDescription)\n", stderr)
             NSApp.terminate(nil)
@@ -94,6 +96,10 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 @main
 struct HarborVMApplication {
     static func main() {
+        if MacOSProvisioner.runIfRequested(arguments: CommandLine.arguments) {
+            RunLoop.main.run()
+            return
+        }
         let application = NSApplication.shared
         let delegate = ApplicationDelegate()
         application.setActivationPolicy(.regular)

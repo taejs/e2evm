@@ -27,8 +27,13 @@ struct GuestConsole: View {
                 ScrollView([.horizontal, .vertical]) {
                     VStack(alignment: .leading, spacing: 12) {
                         if session.console.isEmpty {
-                            Text("Commands run inside \(profile.name).\nEach command starts a fresh shell; this is not an interactive terminal.")
+                            if running && profile.guestOS == "macos" && !session.guestOnline {
+                                Text("Finish macOS setup, then run in the guest's Terminal:\nsudo mkdir -p /Volumes/HarborKit\nsudo /sbin/mount_virtiofs -r -u \"$(id -u)\" -g \"$(id -g)\" HarborKit /Volumes/HarborKit\n/bin/sh /Volumes/HarborKit/setup-macos.sh\n\nThe installer explains any guest-only Python or Homebrew prerequisites.")
+                                    .foregroundStyle(HarborTheme.muted).textSelection(.enabled)
+                            } else {
+                                Text("Commands run inside \(profile.name).\nEach command starts a fresh shell; this is not an interactive terminal.")
                                 .foregroundStyle(HarborTheme.muted)
+                            }
                         } else { Text(session.console).foregroundStyle(Color(white: 0.84)).textSelection(.enabled) }
                         if session.commandBusy {
                             HStack(spacing: 8) {

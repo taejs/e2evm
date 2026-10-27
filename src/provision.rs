@@ -168,6 +168,9 @@ fn kernel(source: &Path, output: &Path) -> Result<()> {
 
 pub fn prepare(store: &Store, id: &str, cache: Option<&Path>) -> Result<()> {
     let mut profile = store.load(id)?;
+    if profile.guest_os != crate::profile::GuestOS::Linux {
+        bail!("Ubuntu preparation requires a Linux profile");
+    }
     let dir = store.dir(id)?;
     let _lock = safe_fs::Lock::acquire(&dir.join("profile.lock"))?;
     if profile.ready || dir.join("disk.img").exists() {
@@ -253,6 +256,21 @@ pub fn prepare(store: &Store, id: &str, cache: Option<&Path>) -> Result<()> {
             .arg(&seed)
             .stdout(Stdio::null()),
     )?;
+    prepare_kit(store, id, &profile.setup)?;
+    for name in ["kernel", "initrd", "disk.img", "seed.iso"] {
+        fs::rename(stage.join(name), dir.join(name))?;
+    }
+    profile.ready = true;
+    store.save(&profile)?;
+    eprintln!(
+        "Prepared {}. Start the VM; selected components install on first boot.",
+        profile.name
+    );
+    Ok(())
+}
+
+fn prepare_kit(store: &Store, id: &str, setup: &crate::profile::SetupOptions) -> Result<()> {
+    let dir = store.dir(id)?;
     for sub in ["mailbox", "mailbox/commands", "mailbox/replies", "kit"] {
         safe_fs::private_dir(&dir.join(sub))?;
     }
@@ -262,18 +280,78 @@ pub fn prepare(store: &Store, id: &str, cache: Option<&Path>) -> Result<()> {
     )?;
     fs::write(dir.join("kit/setup.sh"), include_str!("../guest/setup.sh"))?;
     fs::write(
+        dir.join("kit/setup-macos.sh"),
+        include_str!("../guest/setup-macos.sh"),
+    )?;
+    fs::write(
         dir.join("kit/welcome.html"),
         include_str!("../guest/welcome.html"),
     )?;
-    for name in ["kernel", "initrd", "disk.img", "seed.iso"] {
-        fs::rename(stage.join(name), dir.join(name))?;
+    fs::write(
+        dir.join("kit/setup-options.env"),
+        format!(
+            "SETUP_DESKTOP={}\nSETUP_BROWSER={}\nSETUP_PYTHON={}\nSETUP_NODE={}\nSETUP_PLAYWRIGHT={}\n",
+            u8::from(setup.desktop),
+            u8::from(setup.browser),
+            u8::from(setup.python),
+            u8::from(setup.node),
+            u8::from(setup.playwright)
+        ),
+    )?;
+    Ok(())
+}
+
+pub fn prepare_macos(store: &Store, id: &str, restore_image: Option<&Path>) -> Result<()> {
+    if !cfg!(target_os = "macos") {
+        bail!("macOS guests require Apple Silicon running macOS");
+    }
+    let mut profile = store.load(id)?;
+    if profile.guest_os != crate::profile::GuestOS::Macos {
+        bail!("Expected a macOS profile");
+    }
+    let dir = store.dir(id)?;
+    let _lock = safe_fs::Lock::acquire(&dir.join("profile.lock"))?;
+    if profile.ready || dir.join("disk.img").exists() {
+        bail!("Profile already has a disk; it will not be overwritten");
+    }
+    if let Some(image) = restore_image {
+        regular_file(image)?;
+    }
+    let stage = dir.join("preparing");
+    fs::create_dir(&stage).context("Preparation staging exists; inspect it before retrying")?;
+    safe_fs::private_dir(&stage)?;
+    let mut command = Command::new(crate::bridge::executable()?);
+    command
+        .arg("--prepare-macos")
+        .arg(&stage)
+        .arg("--cpus")
+        .arg(profile.cpus.to_string())
+        .arg("--memory-mib")
+        .arg(profile.memory_mib.to_string())
+        .arg("--disk-gib")
+        .arg(profile.disk_gib.to_string())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null());
+    if let Some(image) = restore_image {
+        command.arg("--restore-image").arg(image);
+    }
+    checked(&mut command)?;
+    let files = [
+        "disk.img",
+        "hardware-model.bin",
+        "machine-identifier.bin",
+        "auxiliary-storage",
+    ];
+    for file in files {
+        regular_file(&stage.join(file))?;
+    }
+    prepare_kit(store, id, &profile.setup)?;
+    for file in files {
+        fs::rename(stage.join(file), dir.join(file))?;
     }
     profile.ready = true;
     store.save(&profile)?;
-    eprintln!(
-        "Prepared {}. Start the VM; desktop packages install on first boot.",
-        profile.name
-    );
+    eprintln!("Installed macOS. Start the guest and complete Apple's setup inside its window.");
     Ok(())
 }
 fn cloud_config(id: &str) -> String {

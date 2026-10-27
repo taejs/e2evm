@@ -40,7 +40,6 @@ final class ControlServer {
             while true {
                 let client = accept(socketFD, nil, nil)
                 if client < 0 { if errno == EINTR { continue }; return }
-                // A dedicated queue per connection keeps one waiting VM start from blocking status.
                 DispatchQueue.global(qos: .userInitiated).async { [self] in serve(client) }
             }
         }

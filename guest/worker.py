@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import platform
 from pathlib import Path
 import re
 import signal
@@ -48,12 +49,16 @@ def execute(request):
         raise ValueError("argv must be a nonempty array of strings")
     timeout = max(1, min(float(request.get("timeout", 60)), 600))
     command = argv
+    macos = platform.system() == "Darwin"
+    home = str(Path.home()) if macos else "/home/harbor"
     if os.geteuid() == 0:
+        if macos:
+            raise ValueError("Run the macOS guest worker as the signed-in guest user")
         command = ["/usr/sbin/runuser", "-u", "harbor", "--", *argv]
     import selectors
     process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT, start_new_session=True,
-                               env={**os.environ, "DISPLAY": ":0", "HOME": "/home/harbor"}, cwd="/home/harbor")
+                               env={**os.environ, "DISPLAY": ":0", "HOME": home}, cwd=home)
     output = bytearray()
     truncated = False
     timed_out = False

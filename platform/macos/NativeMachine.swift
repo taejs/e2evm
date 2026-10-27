@@ -49,7 +49,10 @@ final class NativeMachine: NSObject, VZVirtualMachineDelegate {
         try requirePrivateDirectory(root + "/profiles")
         try requirePrivateDirectory(directory)
         let lease = try FileLease(directory + "/profile.lock")
-        for file in ["disk.img", "kernel", "initrd", "seed.iso"] { try requireRegularFile(directory + "/" + file) }
+        let requiredFiles = profile.guestOS == "macos"
+            ? ["disk.img", "hardware-model.bin", "machine-identifier.bin", "auxiliary-storage"]
+            : ["disk.img", "kernel", "initrd", "seed.iso"]
+        for file in requiredFiles { try requireRegularFile(directory + "/" + file) }
         // VZ acquires its own image lock when starting. Holding flock on the image
         // ourselves makes the VZ storage service reject it. Pin identity in a sidecar.
         let leaseDirectory = root + "/disk-leases"
@@ -62,27 +65,45 @@ final class NativeMachine: NSObject, VZVirtualMachineDelegate {
         let config = VZVirtualMachineConfiguration()
         config.cpuCount = profile.cpus
         config.memorySize = UInt64(profile.memory_mib) * 1024 * 1024
-        let boot = VZLinuxBootLoader(kernelURL: URL(fileURLWithPath: directory + "/kernel"))
-        boot.initialRamdiskURL = URL(fileURLWithPath: directory + "/initrd")
-        boot.commandLine = "root=/dev/vda rw rootwait console=hvc0 console=tty0"
-        config.bootLoader = boot
-        config.platform = VZGenericPlatformConfiguration()
         let mainDisk = try VZDiskImageStorageDeviceAttachment(url: URL(fileURLWithPath: directory + "/disk.img"), readOnly: false, cachingMode: .cached, synchronizationMode: .fsync)
-        let seedDisk = try VZDiskImageStorageDeviceAttachment(url: URL(fileURLWithPath: directory + "/seed.iso"), readOnly: true, cachingMode: .cached, synchronizationMode: .fsync)
-        config.storageDevices = [VZVirtioBlockDeviceConfiguration(attachment: mainDisk), VZVirtioBlockDeviceConfiguration(attachment: seedDisk)]
+        if profile.guestOS == "macos" {
+            config.bootLoader = VZMacOSBootLoader()
+            config.platform = try MacOSProvisioner.loadPlatform(directory: directory)
+            config.storageDevices = [VZVirtioBlockDeviceConfiguration(attachment: mainDisk)]
+            config.graphicsDevices = [MacOSProvisioner.graphics()]
+            config.keyboards = [VZMacKeyboardConfiguration()]
+            config.pointingDevices = [VZUSBScreenCoordinatePointingDeviceConfiguration()]
+        } else {
+            let boot = VZLinuxBootLoader(kernelURL: URL(fileURLWithPath: directory + "/kernel"))
+            boot.initialRamdiskURL = URL(fileURLWithPath: directory + "/initrd")
+            boot.commandLine = "root=/dev/vda rw rootwait console=hvc0 console=tty0"
+            config.bootLoader = boot
+            config.platform = VZGenericPlatformConfiguration()
+            let seedDisk = try VZDiskImageStorageDeviceAttachment(url: URL(fileURLWithPath: directory + "/seed.iso"), readOnly: true, cachingMode: .cached, synchronizationMode: .fsync)
+            config.storageDevices = [VZVirtioBlockDeviceConfiguration(attachment: mainDisk), VZVirtioBlockDeviceConfiguration(attachment: seedDisk)]
+            config.memoryBalloonDevices = [VZVirtioTraditionalMemoryBalloonDeviceConfiguration()]
+            let graphics = VZVirtioGraphicsDeviceConfiguration()
+            graphics.scanouts = [VZVirtioGraphicsScanoutConfiguration(widthInPixels: 1440, heightInPixels: 900)]
+            config.graphicsDevices = [graphics]
+            config.keyboards = [VZUSBKeyboardConfiguration()]
+            config.pointingDevices = [VZUSBScreenCoordinatePointingDeviceConfiguration()]
+        }
         let network = VZVirtioNetworkDeviceConfiguration(); network.attachment = VZNATNetworkDeviceAttachment()
         config.networkDevices = [network]
         config.entropyDevices = [VZVirtioEntropyDeviceConfiguration()]
-        config.memoryBalloonDevices = [VZVirtioTraditionalMemoryBalloonDeviceConfiguration()]
-        let graphics = VZVirtioGraphicsDeviceConfiguration()
-        graphics.scanouts = [VZVirtioGraphicsScanoutConfiguration(widthInPixels: 1440, heightInPixels: 900)]
-        config.graphicsDevices = [graphics]
-        config.keyboards = [VZUSBKeyboardConfiguration()]
-        config.pointingDevices = [VZUSBScreenCoordinatePointingDeviceConfiguration()]
         let mailbox = VZVirtioFileSystemDeviceConfiguration(tag: "HarborVM")
         mailbox.share = VZSingleDirectoryShare(directory: VZSharedDirectory(url: URL(fileURLWithPath: directory + "/mailbox"), readOnly: false))
         let kit = VZVirtioFileSystemDeviceConfiguration(tag: "HarborKit")
-        let kitURL = Bundle.main.resourceURL!.appendingPathComponent("guest")
+        let profileKit = URL(fileURLWithPath: directory + "/kit")
+        let kitURL: URL
+        if FileManager.default.fileExists(atPath: profileKit.appendingPathComponent("worker.py").path) {
+            try requirePrivateDirectory(profileKit.path)
+            try requireRegularFile(profileKit.appendingPathComponent("worker.py").path)
+            kitURL = profileKit
+        } else {
+            guard let resources = Bundle.main.resourceURL else { throw HarborError("Packaged guest kit is missing") }
+            kitURL = resources.appendingPathComponent("guest")
+        }
         guard FileManager.default.fileExists(atPath: kitURL.appendingPathComponent("worker.py").path) else { throw HarborError("Packaged guest kit is missing; rebuild HarborVM.app") }
         kit.share = VZSingleDirectoryShare(directory: VZSharedDirectory(url: kitURL, readOnly: true))
         config.directorySharingDevices = [mailbox, kit]

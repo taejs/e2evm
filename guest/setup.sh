@@ -4,6 +4,8 @@ set -eu
 mkdir -p /mnt/harbor /mnt/harbor-kit
 mountpoint -q /mnt/harbor || mount -t virtiofs HarborVM /mnt/harbor
 mountpoint -q /mnt/harbor-kit || mount -t virtiofs HarborKit /mnt/harbor-kit
+SETUP_DESKTOP=1 SETUP_BROWSER=1 SETUP_PYTHON=1 SETUP_NODE=1 SETUP_PLAYWRIGHT=1
+if [ -f /mnt/harbor-kit/setup-options.env ]; then . /mnt/harbor-kit/setup-options.env; fi
 install -m 755 /mnt/harbor-kit/worker.py /usr/local/bin/harborvm-worker
 mkdir -p /var/lib/harborvm /usr/local/share/harborvm
 cat > /etc/systemd/system/harborvm-setup.service <<'SETUP'
@@ -37,10 +39,17 @@ systemctl daemon-reload
 systemctl enable harborvm-setup
 systemctl enable --now harborvm-worker
 export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -y --no-install-recommends xserver-xorg openbox lightdm xterm dbus-x11 \
-  curl ca-certificates fonts-noto-core fonts-noto-cjk python3-venv python3-pip nodejs npm
-if ! command -v google-chrome >/dev/null; then
+packages=''
+if [ "$SETUP_DESKTOP" = 1 ]; then packages="$packages xserver-xorg openbox lightdm xterm dbus-x11 fonts-noto-core fonts-noto-cjk"; fi
+if [ "$SETUP_BROWSER" = 1 ]; then packages="$packages curl ca-certificates"; fi
+if [ "$SETUP_PYTHON" = 1 ]; then packages="$packages python3-venv python3-pip"; fi
+if [ "$SETUP_NODE" = 1 ]; then packages="$packages nodejs npm"; fi
+if [ -n "$packages" ]; then
+  apt-get update
+  # Package names are fixed above; split this generated list into apt arguments.
+  apt-get install -y --no-install-recommends $packages
+fi
+if [ "$SETUP_BROWSER" = 1 ] && ! command -v google-chrome >/dev/null; then
   mkdir -p /var/cache/harborvm
   curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location \
     https://dl.google.com/linux/direct/google-chrome-stable_current_arm64.deb \
@@ -51,8 +60,13 @@ fi
 install -m 644 /mnt/harbor-kit/welcome.html /usr/local/share/harborvm/welcome.html
 install -d -o harbor -g harbor /home/harbor/Workspace /home/harbor/.local \
   /home/harbor/.local/share /home/harbor/.local/share/applications /home/harbor/.local/share/harborvm
-runuser -u harbor -- python3 -m venv /home/harbor/Workspace/.venv
-runuser -u harbor -- /home/harbor/Workspace/.venv/bin/pip install 'playwright==1.64.1'
+if [ "$SETUP_PYTHON" = 1 ]; then
+  runuser -u harbor -- python3 -m venv /home/harbor/Workspace/.venv
+fi
+if [ "$SETUP_PLAYWRIGHT" = 1 ]; then
+  runuser -u harbor -- /home/harbor/Workspace/.venv/bin/pip install 'playwright==1.64.1'
+fi
+if [ "$SETUP_BROWSER" = 1 ]; then
 cat > /usr/local/bin/harbor-browser <<'BROWSER'
 #!/bin/sh
 set -eu
@@ -66,6 +80,8 @@ nohup google-chrome --user-data-dir="$HOME/.local/share/harborvm/chrome" \
   </dev/null >"$HOME/.local/share/harborvm/browser.log" 2>&1 &
 BROWSER
 chmod 755 /usr/local/bin/harbor-browser
+fi
+if [ "$SETUP_DESKTOP" = 1 ]; then
 mkdir -p /etc/lightdm/lightdm.conf.d /home/harbor/.config/openbox
 cat > /etc/lightdm/lightdm.conf.d/50-harborvm.conf <<'LIGHTDM'
 [Seat:*]
@@ -75,11 +91,13 @@ user-session=openbox
 LIGHTDM
 cat > /home/harbor/.config/openbox/autostart <<'DESKTOP'
 xsetroot -solid '#17252b'
-harbor-browser
 DESKTOP
+if [ "$SETUP_BROWSER" = 1 ]; then printf 'harbor-browser\n' >> /home/harbor/.config/openbox/autostart; fi
 chown -R harbor:harbor /home/harbor/.config
 systemctl enable lightdm
 systemctl set-default graphical.target
 systemctl restart lightdm
+fi
 touch /var/lib/harborvm/setup-complete
-printf 'Desktop ready\n' > /mnt/harbor/desktop-ready
+printf 'Selected components ready\n' > /mnt/harbor/setup-ready
+if [ "$SETUP_DESKTOP" = 1 ]; then printf 'Desktop ready\n' > /mnt/harbor/desktop-ready; fi

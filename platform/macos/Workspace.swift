@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 
-// Original native workspace styling; no third-party assets or UI code.
 enum HarborTheme {
     static let canvas = Color(red: 0.065, green: 0.073, blue: 0.080)
     static let rail = Color(red: 0.084, green: 0.094, blue: 0.104)
@@ -108,7 +107,7 @@ struct WorkspaceView: View {
 
     private func libraryState(_ profile: MachineProfile) -> String {
         let state = model.machines[profile.id]?.state ?? "stopped"
-        return state == "stopped" ? (profile.ready ? "Ready · Ubuntu" : "Not prepared") : state.capitalized
+        return state == "stopped" ? (profile.ready ? "Ready · \(profile.guestOS == "macos" ? "macOS" : "Ubuntu")" : "Not prepared") : state.capitalized
     }
 
     private var emptyWorkspace: some View {
@@ -116,11 +115,11 @@ struct WorkspaceView: View {
             Image(systemName: "desktopcomputer").font(.system(size: 40, weight: .ultraLight)).foregroundStyle(HarborTheme.accent)
             VStack(alignment: .leading, spacing: 10) {
                 Text("A place for your next machine.").font(.system(size: 25, weight: .medium))
-                Text("Create a Linux profile, prepare its disk, then open\nan isolated desktop alongside your command console.")
+                Text("Create a machine, prepare its disk, then open\nan isolated desktop alongside your command console.")
                     .font(.system(size: 13)).lineSpacing(5).foregroundStyle(HarborTheme.muted)
             }
             Button("Create a machine") { showCreate = true }.buttonStyle(.borderedProminent).controlSize(.large)
-            Text("Apple Silicon · Ubuntu ARM64 · Local storage").font(.system(size: 10)).foregroundStyle(HarborTheme.muted)
+            Text("Apple Silicon · Linux and macOS · Local storage").font(.system(size: 10)).foregroundStyle(HarborTheme.muted)
         }.frame(maxWidth: .infinity, maxHeight: .infinity).background(HarborTheme.canvas)
     }
 }
@@ -185,7 +184,7 @@ struct MachineWorkspace: View {
                         Button("Force stop…", role: .destructive) { confirmPoweroff = true }.disabled(state == "stopped")
                     } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).frame(width: 22)
                 } else {
-                    Button { model.request("prepare", id: profile.id) } label: { Label("Prepare Linux", systemImage: "arrow.down.circle") }
+                    Button { model.request("prepare", id: profile.id) } label: { Label(profile.guestOS == "macos" ? "Install macOS" : "Prepare Linux", systemImage: "arrow.down.circle") }
                         .buttonStyle(.borderedProminent)
                 }
                 if session.action != nil { ProgressView().controlSize(.small).scaleEffect(0.7).frame(width: 16, height: 16) }
@@ -205,9 +204,9 @@ struct MachineWorkspace: View {
                     Image(systemName: session.action == "prepare" ? "arrow.down.circle" : "desktopcomputer")
                         .font(.system(size: 38, weight: .ultraLight)).foregroundStyle(HarborTheme.muted)
                     VStack(spacing: 8) {
-                        Text(session.action == "prepare" ? "Preparing your machine" : profile.ready ? "Your desktop is ready" : "Start with a fresh Linux disk")
+                        Text(session.action == "prepare" ? "Preparing your machine" : profile.ready ? "Your desktop is ready" : "Start with a fresh disk")
                             .font(.system(size: 18, weight: .medium))
-                        Text(session.action == "prepare" ? "Downloading and verifying Ubuntu. This can take several minutes." : profile.ready ? "Start this machine to open its isolated desktop." : "Prepare downloads Ubuntu ARM64 and creates a private 24 GiB disk.\nMemory is allocated only when you start the machine.")
+                        Text(session.action == "prepare" ? (profile.guestOS == "macos" ? "Downloading from Apple and installing macOS. This can take a while." : "Downloading and verifying Ubuntu. This can take several minutes.") : profile.ready ? "Start this machine to open its isolated desktop." : (profile.guestOS == "macos" ? "Download an Apple restore image into a private 64 GiB disk. Complete guest setup after installation." : "Prepare downloads Ubuntu ARM64 and creates a private 24 GiB disk.\nMemory is allocated only when you start the machine."))
                             .font(.system(size: 12)).foregroundStyle(HarborTheme.muted).multilineTextAlignment(.center).lineSpacing(4)
                     }
                     if session.action == "prepare" {
@@ -234,6 +233,15 @@ struct CreateProfileSheet: View {
     @State private var identifier = "ubuntu"
     @State private var cpus = 2
     @State private var memory = 2048
+    @State private var guestOS = "linux"
+    @State private var desktop = true
+    @State private var browser = true
+    @State private var python = true
+    @State private var node = true
+    @State private var playwright = true
+    private var without: [String] {
+        [("desktop", desktop), ("browser", browser), ("python", python), ("node", node), ("playwright", playwright)].compactMap { $0.1 ? nil : $0.0 }
+    }
     private var valid: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !identifier.isEmpty && identifier.count <= 40 && identifier.first != "-" && identifier.utf8.allSatisfy { (97...122).contains($0) || (48...57).contains($0) || $0 == 45 }
     }
@@ -244,14 +252,48 @@ struct CreateProfileSheet: View {
                 Text("Create a profile first. Prepare and start it when you are ready.").foregroundStyle(.secondary).font(.callout)
             }
             Form {
+                Picker("Operating system", selection: $guestOS) {
+                    Text("Ubuntu Linux").tag("linux")
+                    Text("macOS").tag("macos")
+                }.onChange(of: guestOS) { _, value in
+                    if value == "macos" {
+                        if name == "Ubuntu workspace" { name = "macOS workspace" }
+                        if identifier == "ubuntu" { identifier = "macos" }
+                        memory = max(memory, 4096); cpus = max(cpus, 2); desktop = true
+                    } else {
+                        if name == "macOS workspace" { name = "Ubuntu workspace" }
+                        if identifier == "macos" { identifier = "ubuntu" }
+                    }
+                }
                 TextField("Name", text: $name)
                 TextField("Profile ID", text: $identifier)
                 Text("Use lowercase letters, numbers and hyphens.").font(.caption).foregroundStyle(.secondary)
-                Stepper("CPU cores: \(cpus)", value: $cpus, in: 1...min(32, ProcessInfo.processInfo.activeProcessorCount))
+                Stepper("CPU cores: \(cpus)", value: $cpus, in: (guestOS == "macos" ? 2 : 1)...min(32, ProcessInfo.processInfo.activeProcessorCount))
                 Picker("Memory", selection: $memory) {
-                    ForEach([1024, 2048, 4096, 8192, 16384], id: \.self) { Text("\($0 / 1024) GB").tag($0) }
+                    ForEach([1024, 2048, 4096, 8192, 16384].filter { guestOS != "macos" || $0 >= 4096 }, id: \.self) { Text("\($0 / 1024) GB").tag($0) }
                 }
-                Text("24 GiB sparse disk · Ubuntu ARM64").font(.caption).foregroundStyle(.secondary)
+                Text(guestOS == "macos" ? "64 GiB sparse disk · Apple restore image" : "24 GiB sparse disk · Ubuntu ARM64").font(.caption).foregroundStyle(.secondary)
+                Section("Optional setup") {
+                    Text("Start with everything selected. Turn off what you do not need.").font(.caption).foregroundStyle(.secondary)
+                    if guestOS == "linux" {
+                        Toggle("Desktop", isOn: $desktop).onChange(of: desktop) { _, enabled in
+                            if !enabled { browser = false; playwright = false }
+                        }
+                    }
+                    Toggle("Chrome browser", isOn: $browser).disabled(!desktop).onChange(of: browser) { _, enabled in
+                        if !enabled { playwright = false }
+                    }
+                    Toggle("Python development tools", isOn: $python).onChange(of: python) { _, enabled in
+                        if !enabled { playwright = false }
+                    }
+                    Toggle("Node.js and npm", isOn: $node)
+                    Toggle("Playwright for Python", isOn: $playwright).disabled(!browser || !python)
+                    Text("Chrome needs a desktop. Playwright needs Chrome and Python tools. Turning these off also turns off their dependents.").font(.caption).foregroundStyle(.secondary)
+                    Text("The guest connection runtime is required for commands. These choices apply to optional tools.").font(.caption).foregroundStyle(.secondary)
+                    if guestOS == "macos" {
+                        Text("After installation, complete Apple's setup in the VM and run the guest connection setup in its Terminal.").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
             }.formStyle(.grouped)
             if let error = model.errorMessage { Text(error).font(.callout).foregroundStyle(.orange).textSelection(.enabled) }
             HStack {
@@ -259,9 +301,9 @@ struct CreateProfileSheet: View {
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction).disabled(model.creating)
                 Button(model.creating ? "Creating…" : "Create profile") {
                     model.errorMessage = nil
-                    model.create(id: identifier, name: name, cpus: cpus, memory: memory) { success in if success { dismiss() } }
+                    model.create(id: identifier, name: name, cpus: cpus, memory: memory, guestOS: guestOS, without: without) { success in if success { dismiss() } }
                 }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction).disabled(!valid || model.creating)
             }
-        }.padding(28).frame(width: 460).tint(HarborTheme.accent)
+        }.padding(28).frame(width: 520, height: 690).tint(HarborTheme.accent)
     }
 }
