@@ -15,8 +15,8 @@ use std::{
 };
 
 const MAX_PROMPT_BYTES: usize = 64 * 1024;
-static ACTIVE: Mutex<()> = Mutex::new(());
-static CANCELLED: AtomicI32 = AtomicI32::new(0);
+pub(crate) static ACTIVE: Mutex<()> = Mutex::new(());
+pub(crate) static CANCELLED: AtomicI32 = AtomicI32::new(0);
 
 /// Bounds apply to the entire subprocess, including stderr and partial JSON lines.
 #[derive(Clone, Copy)]
@@ -34,7 +34,7 @@ impl Default for RunLimits {
 }
 
 pub fn run(store: &Store, id: &str, prompt: &str) -> Result<()> {
-    run_with_limits(store, id, prompt, RunLimits::default())
+    crate::assistant_api::chat(store, id, crate::assistant_api::ChatInput::single(prompt))
 }
 
 /// Runs one turn, flushing completed assistant messages to stdout as they arrive.
@@ -309,11 +309,11 @@ impl Events {
 extern "C" fn cancel(signal: libc::c_int) {
     CANCELLED.store(signal, Ordering::Relaxed);
 }
-struct SignalGuard {
+pub(crate) struct SignalGuard {
     previous: Vec<(libc::c_int, libc::sigaction)>,
 }
 impl SignalGuard {
-    fn install() -> Result<Self> {
+    pub(crate) fn install() -> Result<Self> {
         CANCELLED.store(0, Ordering::Relaxed);
         let mut guard = Self {
             previous: Vec::new(),

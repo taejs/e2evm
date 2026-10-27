@@ -17,6 +17,8 @@ pub struct Profile {
     pub ready: bool,
     #[serde(default)]
     pub assistant_program: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assistant_connection: Option<crate::assistant_api::Connection>,
 }
 impl Profile {
     pub fn new(id: &str, name: &str, cpus: u32, memory_mib: u32) -> Result<Self> {
@@ -29,6 +31,7 @@ impl Profile {
             disk_gib: 24,
             ready: false,
             assistant_program: None,
+            assistant_connection: None,
         };
         profile.validate()?;
         Ok(profile)
@@ -52,6 +55,9 @@ impl Profile {
         }
         if !(8..=512).contains(&self.disk_gib) {
             bail!("Disk size must be 8–512 GiB");
+        }
+        if let Some(connection) = &self.assistant_connection {
+            connection.validate()?;
         }
         Ok(())
     }

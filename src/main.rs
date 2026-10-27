@@ -7,7 +7,7 @@ use std::path::Path;
 
 fn help() {
     println!(
-        "HarborVM — local VM workspace\n\n  app                                  Open the desktop workspace\n  profile list | show ID               Inspect saved machines\n  profile create ID [--name NAME] [--cpus N] [--memory MIB]\n  profile assistant ID PROGRAM         Choose the local Codex executable\n  prepare ID [--cache DIRECTORY]        Prepare fresh Ubuntu ARM64\n  start | status | pause | resume ID    Control a machine\n  stop ID                              Request graceful shutdown\n  poweroff ID                          Force stop; unsaved work may be lost\n  exec ID -- PROGRAM [ARG...]           Run a guest command (60 s timeout)\n  run ID SHELL-LINE                     Run a shell line inside the guest\n  chat ID PROMPT                        Ask your local Codex CLI\n  screenshot ID OUTPUT.png [--app]      Capture the guest or workspace\n  input ID click X Y | key KEY | text TEXT\n\nHARBORVM_HOME selects the private data directory. HARBORVM_APP selects the native app.\nGuest commands never fall back to host execution."
+        "HarborVM — local VM workspace\n\n  app                                  Open the desktop workspace\n  profile list | show ID               Inspect saved machines\n  profile create ID [--name NAME] [--cpus N] [--memory MIB]\n  profile assistant ID PROGRAM         Choose the local Codex executable\n  profile connection ID PROVIDER [--endpoint URL] [--model MODEL] [--key-env NAME]\n  assistant models ID                  Discover API models\n  assistant models-json ID             Discover models with stdin JSON key\n  prepare ID [--cache DIRECTORY]        Prepare fresh Ubuntu ARM64\n  start | status | pause | resume ID    Control a machine\n  stop ID                              Request graceful shutdown\n  poweroff ID                          Force stop; unsaved work may be lost\n  exec ID -- PROGRAM [ARG...]           Run a guest command (60 s timeout)\n  run ID SHELL-LINE                     Run a shell line inside the guest\n  chat ID PROMPT                        Ask the selected assistant provider\n  chat-json ID                          Read conversation JSON from stdin\n  screenshot ID OUTPUT.png [--app]      Capture the guest or workspace\n  input ID click X Y | key KEY | text TEXT\n\nHARBORVM_HOME selects the private data directory. HARBORVM_APP selects the native app.\nGuest commands never fall back to host execution."
     );
 }
 fn run() -> Result<()> {
@@ -58,6 +58,19 @@ fn run() -> Result<()> {
                 std::process::exit(1);
             }
             return Ok(());
+        }
+        ("chat-json", id) => {
+            let input = harborvm::assistant_api::read_input(std::io::stdin().lock())?;
+            harborvm::assistant_api::chat(&store, id, input)?;
+            return Ok(());
+        }
+        ("assistant", "models" | "models-json") => {
+            let input = if args[1] == "models-json" {
+                harborvm::assistant_api::read_input(std::io::stdin().lock())?
+            } else {
+                harborvm::assistant_api::ModelInput::default()
+            };
+            harborvm::assistant_api::models(&store, arg(2)?, input)?
         }
         ("chat", id) => {
             harborvm::assistant::run(&store, id, arg(2)?)?;
@@ -129,6 +142,34 @@ fn run() -> Result<()> {
         ("profile", "assistant") => {
             let mut profile = store.load(arg(2)?)?;
             profile.assistant_program = Some(arg(3)?.to_string());
+            store.save(&profile)?;
+            store.descriptor(&profile.id)?
+        }
+        ("profile", "connection") => {
+            use harborvm::assistant_api::{Connection, Provider};
+            let provider = match arg(3)? {
+                "codex" => Provider::Codex,
+                "ollama" => Provider::Ollama,
+                "openai-compatible" => Provider::OpenaiCompatible,
+                _ => bail!("Provider must be codex, ollama, or openai-compatible"),
+            };
+            let mut connection = Connection {
+                provider,
+                ..Connection::default()
+            };
+            let mut i = 4;
+            while i < args.len() {
+                match arg(i)? {
+                    "--endpoint" => connection.endpoint = Some(arg(i + 1)?.into()),
+                    "--model" => connection.model = Some(arg(i + 1)?.into()),
+                    "--key-env" => connection.key_env = Some(arg(i + 1)?.into()),
+                    _ => bail!("Unknown connection option"),
+                }
+                i += 2;
+            }
+            connection.validate()?;
+            let mut profile = store.load(arg(2)?)?;
+            profile.assistant_connection = Some(connection);
             store.save(&profile)?;
             store.descriptor(&profile.id)?
         }

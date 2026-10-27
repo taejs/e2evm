@@ -7,3 +7,5 @@ pub mod provision;
 
 pub mod assistant;
 pub mod bridge;
+
+pub mod assistant_api;
