@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import SwiftUI
 import Virtualization
 
@@ -11,6 +12,8 @@ struct MachineProfile: Decodable, Identifiable {
     let disk_gib: Int
     let ready: Bool
     let assistant_program: String?
+    let assistant_connection: AssistantConnection?
+    var connection: AssistantConnection { assistant_connection ?? .codex }
     var directory: String?
 }
 
@@ -29,6 +32,9 @@ final class ProfileSession: ObservableObject {
     @Published var prompt = ""
     @Published var messages: [ConversationMessage] = []
     @Published var chatBusy = false
+    // Credentials and conversation exist only for this app session, never in profile JSON.
+    @Published var apiKey = ""
+    var history: [[String: String]] = []
     @Published var action: String?
     @Published var progress = ""
     @Published var guestOnline = false
@@ -94,28 +100,42 @@ final class WorkspaceModel: ObservableObject {
         let value = ProfileSession(); sessions[id] = value; return value
     }
 
-    /// A chat turn sends only the text the user submits; UI history is never sent implicitly.
+    /// Only the conversation the user sees is shared. Guest state is never attached.
     func ask(_ id: String) {
         let state = session(id), prompt = session(id).prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !state.chatBusy, !prompt.isEmpty else { return }
-        guard prompt.utf8.count <= 64 * 1024 else { errorMessage = "Prompts must be at most 64 KiB."; return }
+        let userMessage = ["role": "user", "content": prompt]
+        var request: [String: Any] = ["messages": state.history + [userMessage]]
+        if !state.apiKey.isEmpty { request["api_key"] = state.apiKey }
+        guard let input = try? JSONSerialization.data(withJSONObject: request), input.count <= 64 * 1024 else {
+            errorMessage = "This conversation exceeds 64 KiB. Clear the conversation or shorten your message."; return
+        }
         state.prompt = ""; state.chatBusy = true
-        // Bound retained UI history as well as subprocess output.
-        if state.messages.count > 78 { state.messages.removeFirst(state.messages.count - 78) }
-        state.messages.append(ConversationMessage(role: "You", text: prompt))
-        state.messages.append(ConversationMessage(role: "Codex", text: ""))
+        state.messages.append(ConversationMessage(role: "user", text: prompt))
+        state.messages.append(ConversationMessage(role: "assistant", text: ""))
         let messageID = state.messages.last!.id
-        launch(["chat", id, prompt], key: "chat:\(id)", output: { text in
+        launch(["chat-json", id], key: "chat:\(id)", input: input, output: { text in
             if let index = state.messages.firstIndex(where: { $0.id == messageID }) { state.messages[index].text = text }
         }) { result in
             state.chatBusy = false
             if let index = state.messages.firstIndex(where: { $0.id == messageID }) {
-                if case .failure(let error) = result {
+                switch result {
+                case .success(let data):
+                    let text = String(decoding: data, as: UTF8.self)
+                    state.messages[index].text = String(text.suffix(256 * 1024))
+                    state.history += [userMessage, ["role": "assistant", "content": text]]
+                case .failure(let error):
                     state.messages[index].text += (state.messages[index].text.isEmpty ? "" : "\n\n") + error.localizedDescription
                     state.messages[index].failed = true
                 }
             }
         }
+    }
+
+    func clearConversation(_ id: String) {
+        let state = session(id)
+        guard !state.chatBusy else { return }
+        state.messages = []; state.history = []
     }
 
     func cancelChat(_ id: String) { jobs["chat:\(id)"]?.cancel() }
@@ -164,11 +184,51 @@ final class WorkspaceModel: ObservableObject {
         }
     }
 
-    func setAssistant(id: String, program: String, completion: @escaping (Bool) -> Void) {
-        launch(["profile", "assistant", id, program], key: "settings:\(id)") { [weak self] result in
+    func setConnection(id: String, connection: AssistantConnection, program: String, apiKey: String,
+                       completion: @escaping (Bool) -> Void) {
+        guard !session(id).chatBusy else { errorMessage = "Stop the current response before changing its connection."; completion(false); return }
+        let previous = profiles.first { $0.id == id }
+        var arguments = ["profile", "connection", id, connection.provider.rawValue]
+        if let endpoint = connection.endpoint, !endpoint.isEmpty { arguments += ["--endpoint", endpoint] }
+        if let model = connection.model, !model.isEmpty { arguments += ["--model", model] }
+        if let keyEnv = connection.key_env, !keyEnv.isEmpty { arguments += ["--key-env", keyEnv] }
+        let saveConnection = { [weak self] in
+            guard let self else { completion(false); return }
+            self.launch(arguments, key: "settings:\(id)") { [weak self] result in
+                guard let self else { completion(false); return }
+                switch result {
+                case .success:
+                    if previous?.connection != connection || (connection.provider == .codex && previous?.assistant_program != program) {
+                        self.clearConversation(id)
+                    }
+                    self.reload()
+                    self.session(id).apiKey = apiKey
+                    completion(true)
+                case .failure(let error): self.errorMessage = error.localizedDescription; completion(false)
+                }
+            }
+        }
+        if connection.provider == .codex {
+            launch(["profile", "assistant", id, program], key: "program:\(id)") { [weak self] result in
+                switch result {
+                case .success: saveConnection()
+                case .failure(let error): self?.errorMessage = error.localizedDescription; completion(false)
+                }
+            }
+        } else { saveConnection() }
+    }
+
+    func fetchModels(_ id: String, completion: @escaping ([String]?) -> Void) {
+        let apiKey = session(id).apiKey
+        let input = try? JSONSerialization.data(withJSONObject: apiKey.isEmpty ? [:] : ["api_key": apiKey])
+        launch(["assistant", "models-json", id], key: "models:\(id)", input: input) { [weak self] result in
             switch result {
-            case .success: self?.reload(); completion(true)
-            case .failure(let error): self?.errorMessage = error.localizedDescription; completion(false)
+            case .success(let data):
+                guard let models = (try? JSONSerialization.jsonObject(with: data)) as? [[String: String]] else {
+                    self?.errorMessage = "The provider returned an invalid model list."; completion(nil); return
+                }
+                completion(models.compactMap { $0["id"] }.sorted())
+            case .failure(let error): self?.errorMessage = error.localizedDescription; completion(nil)
             }
         }
     }
@@ -192,7 +252,7 @@ final class WorkspaceModel: ObservableObject {
         if jobs.isEmpty { terminationCompletion = nil; completion() }
     }
 
-    private func launch(_ arguments: [String], key: String, acceptFailureJSON: Bool = false,
+    private func launch(_ arguments: [String], key: String, acceptFailureJSON: Bool = false, input: Data? = nil,
                         output: ((String) -> Void)? = nil, diagnostic: ((String) -> Void)? = nil,
                         completion: @escaping (Result<Data, Error>) -> Void) {
         guard jobs[key] == nil else { completion(.failure(HarborError("This operation is already running."))); return }
@@ -200,11 +260,22 @@ final class WorkspaceModel: ObservableObject {
         job.process.executableURL = URL(fileURLWithPath: cli); job.process.arguments = arguments
         var environment = ProcessInfo.processInfo.environment; environment["HARBORVM_HOME"] = root
         job.process.environment = environment
-        job.process.standardInput = FileHandle.nullDevice
+        let stdin = input == nil ? nil : Pipe()
+        job.process.standardInput = stdin ?? FileHandle.nullDevice as Any
         job.process.standardOutput = stdout; job.process.standardError = stderr
         do { try job.process.run() } catch { completion(.failure(error)); return }
+        try? stdin?.fileHandleForReading.close()
         jobs[key] = job
         let group = DispatchGroup(), out = CLIBytes(), err = CLIBytes()
+        if let stdin, let input {
+            // Do not block the UI while the child reads. Early exit must not raise SIGPIPE.
+            _ = fcntl(stdin.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1)
+            group.enter()
+            DispatchQueue.global(qos: .userInitiated).async {
+                defer { try? stdin.fileHandleForWriting.close(); group.leave() }
+                try? stdin.fileHandleForWriting.write(contentsOf: input)
+            }
+        }
         for (pipe, buffer, update) in [(stdout, out, output), (stderr, err, diagnostic)] {
             group.enter()
             DispatchQueue.global(qos: .userInitiated).async {
@@ -263,7 +334,16 @@ final class WorkspaceModel: ObservableObject {
     }
     func reload() {
         do {
-            profiles = try JSONDecoder().decode([MachineProfile].self, from: runCLI(["profile", "list"]))
+            let updated = try JSONDecoder().decode([MachineProfile].self, from: runCLI(["profile", "list"]))
+            for profile in updated {
+                if let previous = profiles.first(where: { $0.id == profile.id }),
+                   previous.connection != profile.connection || previous.assistant_program != profile.assistant_program,
+                   let state = sessions[profile.id] {
+                    cancelChat(profile.id)
+                    state.messages = []; state.history = []; state.apiKey = ""
+                }
+            }
+            profiles = updated
             if !profiles.contains(where: { $0.id == selectedID }) { selectedID = profiles.first?.id }
         } catch { errorMessage = error.localizedDescription }
     }
