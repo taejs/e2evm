@@ -36,6 +36,8 @@ The predecessor is tied to private blog workflows and has a decorative interface
 - R7. Keep existing machines and operational data untouched. Use a separate runtime and refuse concurrent ownership of the same profile or disk.
 - R8. Publish only new product source, original assets, and English docs; include license, contribution and security policies, issue/PR templates, build instructions, and CI.
 - R9. Make small, meaningful English commits after verified units. Audit all published history for private material and dependency licenses.
+- R10. Include a usable browser automation workstation by default: headed Chrome, Python, Node.js and Playwright, persistent guest browser data, and a visible web page in the actual VM display (session-settled: user-directed, 2026-10-27). Keep private publishing code, accounts and schedules out of the distribution.
+- R11. Let the assistant select existing Codex CLI, Ollama, or an OpenAI-compatible chat API, with configurable model and endpoint (session-settled: user-approved, 2026-10-27). Support continuing a conversation, streaming and cancellation. Do not create or silently reuse a paid API credential. Use Ollama's public chat/API documentation as a reference; retain an original native UI unless source reuse is separately justified.
 
 ### Scope Boundaries
 
@@ -148,6 +150,20 @@ A local VM app is not a security boundary against other processes owned by the s
 - Files: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `docs/`, `.github/`.
 - Approach: Document architecture, setup, capabilities and limits, original design references, licensing, security model and contribution standards. Build CI for portable Rust checks and macOS bridge compilation. Audit history, create public taejs repository, push main bootstrap and feature branch, open a PR, and inspect CI.
 - Tests: Follow clean build instructions; run formatting/lints/unit/integration checks; confirm no private runtime, personal paths, tokens or proprietary assets are tracked. Verify repository owner/visibility and report CI outcome.
+
+### U7. Browser workstation defaults
+- Dependencies: U3, U5.
+- Requirements: R1, R4, R6, R7, R10.
+- Files: `guest/setup.sh`, `guest/welcome.html`, `scripts/build-macos.sh`, `src/provision.rs` (packaged guest assets only).
+- Approach: Install Chrome from Google's HTTPS distribution, Ubuntu Python/Node.js and an isolated Playwright environment; open an original local welcome page in headed Chrome at desktop login. Add a guest browser launcher usable by the console. Retry interrupted setup on the next boot and retain diagnostic access during setup. Keep ordinary-user browser sandboxing enabled.
+- Verification: Real new guest shows a web page in the native display; guest process argv has no headless/no-sandbox flags; Python Playwright connects to the guest-only browser debugging endpoint, opens a disposable page and reads it; persistent profile survives restart. Package installation is verified live rather than mocked.
+
+### U8. Assistant provider connections
+- Dependencies: U4, U5.
+- Requirements: R5, R11.
+- Files: `src/assistant.rs`, `src/assistant_api.rs`, `src/profile.rs`, `src/main.rs`, `src/lib.rs`, `Cargo.toml`, `Cargo.lock`, `tests/assistant_api.rs`, `platform/macos/Model.swift`, `platform/macos/AssistantPanel.swift`, `docs/assistant.md`.
+- Approach: Preserve Codex as the default; add Ollama chat and OpenAI-compatible chat-completions adapters with model discovery, conversation history, bounded streaming, explicit credential configuration and cancellation. Store only connection metadata in profiles. Never place credentials in arguments, logs or guest shares; no account creation or billable verification is authorized by this requirement.
+- Verification: Existing Codex tests remain green; local HTTP fixture exercises both stream formats, request history, model lists, errors, cancellation and credential redaction. Real installed Codex verification remains separate from protocol fixtures. Record whether a real Ollama server/model is available; do not claim fixture output is model inference. Inspect the native connection picker and chat layout.
 
 ## Verification Contract
 
