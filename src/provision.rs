@@ -261,6 +261,10 @@ pub fn prepare(store: &Store, id: &str, cache: Option<&Path>) -> Result<()> {
         include_str!("../guest/worker.py"),
     )?;
     fs::write(dir.join("kit/setup.sh"), include_str!("../guest/setup.sh"))?;
+    fs::write(
+        dir.join("kit/welcome.html"),
+        include_str!("../guest/welcome.html"),
+    )?;
     for name in ["kernel", "initrd", "disk.img", "seed.iso"] {
         fs::rename(stage.join(name), dir.join(name))?;
     }

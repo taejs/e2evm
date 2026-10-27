@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Welcome to HarborVM</title>
+<style>
+  :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #101719; color: #e5efed; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+  main { width: min(860px, 85vw); padding: 54px 0; }
+  .brand { color: #84d2bf; letter-spacing: .16em; font-size: 13px; font-weight: 650; }
+  h1 { font-size: clamp(34px, 5vw, 62px); line-height: 1.1; letter-spacing: -.04em; max-width: 720px; margin: 30px 0 24px; font-weight: 550; }
+  p { color: #a1b2ad; font-size: 18px; line-height: 1.7; max-width: 640px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 44px; }
+  article { border: 1px solid #2d4140; border-radius: 12px; padding: 22px; background: #172322; }
+  h2 { font-size: 15px; font-weight: 550; margin: 0 0 12px; }
+  article p { font-size: 13px; margin: 0; }
+  a { color: #91ddcb; text-underline-offset: 4px; }
+  footer { margin-top: 36px; color: #7e9690; font-size: 12px; }
+  @media(max-width: 680px) { .cards { grid-template-columns: 1fr; } }
+</style>
+<main>
+  <div class="brand">HARBORVM / YOUR LINUX WORKSPACE</div>
+  <h1>A real browser.<br>A space of your own.</h1>
+  <p>This is Chrome running inside your Linux machine. Open a website, sign in to your tools, or build your next browser workflow.</p>
+  <div class="cards">
+    <article><h2>Browse freely</h2><p>Use the address bar above. Your browser profile stays on this machine’s disk.</p></article>
+    <article><h2>Make it yours</h2><p>Python, Node.js and Playwright are ready. Keep your scripts in <code>~/Workspace</code>.</p></article>
+    <article><h2>Work together</h2><p>Run commands in the console below and discuss your next step with the assistant beside it.</p></article>
+  </div>
+  <footer>Local welcome page · No account required · <a href="https://docs.python.org/3/">Python</a> · <a href="https://playwright.dev/python/docs/intro">Playwright</a> · <a href="https://nodejs.org/en/learn">Node.js</a></footer>
+</main>
+</html>
