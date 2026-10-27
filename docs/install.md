@@ -2,6 +2,12 @@
 
 Use this guide when installing E2EVM yourself or asking a coding agent to prepare its browser workspace. E2EVM currently builds from source on Apple Silicon with macOS 14 or newer. It does not have a prebuilt or notarized installer.
 
+## For the agent handling setup
+
+Carry out the setup below, reusing suitable existing tools and a dedicated test VM. Build or locate the app, install the two supplied skills for the calling agent using the [skill installer](agents.md#install-selected-skills), and run the bundled browser check. Infer the agent's install target from your current environment; for other clients, use their documented skill directory or load the local skill paths. Preserve existing skill files if the installer reports a collision.
+
+Keep the workspace in the background. Finish by opening the actual returned screenshot for inspection and attaching it with the two assertion results, CLI path, and selected profile ID. If a prerequisite needs the user's interaction, explain that specific step and continue independent setup work. Do not finish with commands for the user to run when you can carry out the authorized setup.
+
 ## Check the Mac
 
 ```sh

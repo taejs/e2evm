@@ -1,0 +1,32 @@
+name: Share a workflow
+description: Share something you run in E2EVM while you keep using your Mac.
+title: "[Use case] "
+body:
+  - type: dropdown
+    id: status
+    attributes:
+      label: Have you tried it?
+      options:
+        - I ran this workflow
+        - This is an idea to try
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: What runs in the VM, and what do you keep doing?
+      placeholder: My agent checks our staging signup flow while I use X and reply to messages.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can someone try it?
+      description: Include the agent, app or test data, guest setup, and a short prompt or command.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Results or screenshots
+      description: Show what worked or what is missing. Use test data and omit account secrets.

@@ -6,24 +6,43 @@ A local VM workspace for agent-driven browser testing on Apple Silicon, with a R
 
 You're scrolling X, replying to a message, or doing something else. Then your agent starts an E2E run, and a browser jumps in front of you and steals focus. Give the tests their own desktop: E2EVM runs the browser and test commands inside a VM, while you keep using your Mac.
 
-## Get started with a prompt
+<a name="get-started-with-a-prompt"></a>
+<a name="build-and-open-your-first-machine"></a>
+
+## Just paste this prompt
 
 Paste this into your coding agent:
 
 ```text
-Set up E2EVM from https://github.com/taejs/e2evm.
-Follow docs/install.md, then load its agent skills and run the bundled
-browser smoke test inside a dedicated Linux VM. Attach the result screenshot.
-Keep the workspace in the background so I can keep using my Mac.
+Set up E2EVM for me by following this guide:
+https://raw.githubusercontent.com/taejs/e2evm/feat/vm-workspace/docs/install.md
 ```
 
 Requires an **Apple Silicon Mac with macOS 14+**. This preview builds from source; the agent can check prerequisites and guide setup. Prefer the terminal? See [manual installation](docs/install.md).
+
+Once setup is done, ask for the work:
+
+```text
+Run this app's E2E checks in E2EVM while I keep using my Mac.
+Send me the results and screenshots.
+```
 
 ## Your tests get a desktop
 
 Keep a real VM desktop, guest command console, and AI conversation in one native Mac window. Linux machines can install a desktop, Chrome, Python tools, Node.js, and Playwright on first boot. Every optional component starts selected and can be turned off. Choose an existing Codex CLI, an Ollama server, or an OpenAI-compatible chat API in the right panel.
 
 ![E2EVM workspace with a live Linux browser, guest console, and assistant panel](docs/images/workspace.png)
+
+## What can run over there?
+
+| You keep… | The VM handles… |
+| --- | --- |
+| Scrolling X or reading | A headed E2E run, with results and screenshots |
+| Working on something else | Reproducing a UI bug and checking the fix |
+| Using your usual browser | A separate, persistent test login |
+| Messaging or taking a break | A browser reporting or download task |
+
+[Explore six workflows and copyable prompts](docs/use-cases.md). Bring your app or browser task; the recipes explain what each one needs. [Share your own workflow](https://github.com/taejs/e2evm/issues/new?template=use-case.yml).
 
 ## What you can do
 
@@ -103,6 +122,7 @@ Assistant replies are suggestions. They do not run guest commands. Conversations
 
 - [macOS guests and Apple licensing](docs/macos.md)
 - [Agent skill, instructions, and prompts](docs/agents.md)
+- [Use cases and automation recipes](docs/use-cases.md)
 - [Usage and troubleshooting](docs/usage.md)
 - [Architecture and isolation](docs/architecture.md)
 - [Design references](docs/design.md)
