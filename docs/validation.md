@@ -13,6 +13,7 @@ Recorded on 2026-10-27 on Apple Silicon. This is functional verification of the 
 - Whole-app Swift typechecking with warnings treated as errors passed; signed native app build passed.
 - macOS preparation helper rejected nine invalid/unsafe invocation cases. The guest bootstrap rejected execution on the physical host before mutation.
 - Skill frontmatter, linked files, installer overwrite refusal, shell syntax and runnable Python example checks passed.
+- The portable CI commands also passed inside a real Ubuntu ARM64 guest on source revision `796aceb`, using stable Rust 1.99.1 and one build job: formatting, all-target Clippy with warnings denied, 30 Rust tests, 6 guest-worker tests and shell syntax. This verifies the Linux command sequence separately from macOS; the GitHub-hosted workflow itself has not run yet.
 
 ## Real guest and application checks
 
