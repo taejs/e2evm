@@ -14,6 +14,66 @@ struct MachineProfile: Decodable, Identifiable {
     var directory: String?
 }
 
+struct ConversationMessage: Identifiable {
+    let id = UUID()
+    let role: String
+    var text: String
+    var failed = false
+}
+
+final class ProfileSession: ObservableObject {
+    @Published var command = ""
+    @Published var console = ""
+    @Published var commandBusy = false
+    @Published var commands: [String] = []
+    @Published var prompt = ""
+    @Published var messages: [ConversationMessage] = []
+    @Published var chatBusy = false
+    @Published var action: String?
+    @Published var progress = ""
+    @Published var guestOnline = false
+    @Published var consoleVisible = true
+}
+
+/// Each pipe has its own reader. Child processes must never block the AppKit queue.
+/// Captured bytes are bounded independently of the producer's output volume.
+private final class CLIBytes {
+    private let lock = NSLock()
+    private var data = Data()
+    private var clipped = false
+    private var deliveryPending = false
+    func append(_ chunk: Data) {
+        lock.lock(); defer { lock.unlock() }
+        let capacity = 8 * 1024 * 1024
+        if data.count + chunk.count > capacity { clipped = true }
+        data.append(chunk.prefix(max(0, capacity - data.count)))
+    }
+    func deliver(_ update: @escaping (String) -> Void) {
+        lock.lock()
+        guard !deliveryPending else { lock.unlock(); return }
+        deliveryPending = true; lock.unlock()
+        DispatchQueue.main.async { [self] in
+            lock.lock()
+            let text = String(decoding: data.suffix(256 * 1024), as: UTF8.self)
+            deliveryPending = false; lock.unlock()
+            update(text)
+        }
+    }
+    func result() -> (Data, Bool) {
+        lock.lock(); defer { lock.unlock() }
+        return (data, clipped)
+    }
+}
+
+private final class CLIJob {
+    let process = Process()
+    var cancelled = false
+    func cancel() {
+        cancelled = true
+        if process.isRunning { process.terminate() }
+    }
+}
+
 final class WorkspaceModel: ObservableObject {
     let root: String
     let cli: String
@@ -23,10 +83,164 @@ final class WorkspaceModel: ObservableObject {
     @Published var revision = 0
     var machines: [String: NativeMachine] = [:]
     var timer: Timer?
+    private var sessions: [String: ProfileSession] = [:]
+    private var jobs: [String: CLIJob] = [:]
+    private var polling = false
+    private var terminationCompletion: (() -> Void)?
+    @Published var creating = false
+
+    func session(_ id: String) -> ProfileSession {
+        if let existing = sessions[id] { return existing }
+        let value = ProfileSession(); sessions[id] = value; return value
+    }
+
+    /// A chat turn sends only the text the user submits; UI history is never sent implicitly.
+    func ask(_ id: String) {
+        let state = session(id), prompt = session(id).prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !state.chatBusy, !prompt.isEmpty else { return }
+        guard prompt.utf8.count <= 64 * 1024 else { errorMessage = "Prompts must be at most 64 KiB."; return }
+        state.prompt = ""; state.chatBusy = true
+        // Bound retained UI history as well as subprocess output.
+        if state.messages.count > 78 { state.messages.removeFirst(state.messages.count - 78) }
+        state.messages.append(ConversationMessage(role: "You", text: prompt))
+        state.messages.append(ConversationMessage(role: "Codex", text: ""))
+        let messageID = state.messages.last!.id
+        launch(["chat", id, prompt], key: "chat:\(id)", output: { text in
+            if let index = state.messages.firstIndex(where: { $0.id == messageID }) { state.messages[index].text = text }
+        }) { result in
+            state.chatBusy = false
+            if let index = state.messages.firstIndex(where: { $0.id == messageID }) {
+                if case .failure(let error) = result {
+                    state.messages[index].text += (state.messages[index].text.isEmpty ? "" : "\n\n") + error.localizedDescription
+                    state.messages[index].failed = true
+                }
+            }
+        }
+    }
+
+    func cancelChat(_ id: String) { jobs["chat:\(id)"]?.cancel() }
+
+    func runCommand(_ id: String) {
+        let state = session(id), command = session(id).command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !state.commandBusy, !command.isEmpty else { return }
+        state.command = ""; state.commandBusy = true
+        state.commands.append(command)
+        if state.commands.count > 50 { state.commands.removeFirst() }
+        state.console += "\n$ \(command)\n"
+        launch(["run", id, command], key: "command:\(id)", acceptFailureJSON: true) { result in
+            state.commandBusy = false
+            switch result {
+            case .success(let data):
+                if let value = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+                    state.console += (value["output"] as? String ?? "")
+                    if let error = value["error"] as? String { state.console += "\n\(error)" }
+                    if let code = value["exit_code"] as? Int { state.console += "\n[exit \(code)]\n" }
+                } else { state.console += "Invalid response from guest command channel.\n" }
+            case .failure(let error): state.console += "\(error.localizedDescription)\n"
+            }
+            state.console = String(state.console.suffix(256 * 1024))
+        }
+    }
+
+    func request(_ action: String, id: String) {
+        let state = session(id)
+        guard state.action == nil else { return }
+        state.action = action; state.progress = ""
+        launch([action, id], key: "action:\(id)", diagnostic: { state.progress = $0 }) { [weak self] result in
+            state.action = nil
+            if case .failure(let error) = result { self?.errorMessage = error.localizedDescription }
+            self?.reload(); self?.refreshStatus()
+        }
+    }
+
+    func create(id: String, name: String, cpus: Int, memory: Int, completion: @escaping (Bool) -> Void) {
+        guard !creating else { return }; creating = true
+        launch(["profile", "create", id, "--name", name, "--cpus", String(cpus), "--memory", String(memory)], key: "create") { [weak self] result in
+            self?.creating = false
+            switch result {
+            case .success: self?.reload(); self?.selectedID = id; completion(true)
+            case .failure(let error): self?.errorMessage = error.localizedDescription; completion(false)
+            }
+        }
+    }
+
+    func setAssistant(id: String, program: String, completion: @escaping (Bool) -> Void) {
+        launch(["profile", "assistant", id, program], key: "settings:\(id)") { [weak self] result in
+            switch result {
+            case .success: self?.reload(); completion(true)
+            case .failure(let error): self?.errorMessage = error.localizedDescription; completion(false)
+            }
+        }
+    }
+
+    func refreshStatus() {
+        guard !polling, let id = selectedID else { return }; polling = true
+        launch(["status", id], key: "status") { [weak self] result in
+            self?.polling = false
+            if case .success(let data) = result,
+               let value = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+                self?.session(id).guestOnline = value["guest_online"] as? Bool ?? false
+            } else { self?.session(id).guestOnline = false }
+        }
+    }
+
+    var preparing: Bool { sessions.values.contains { $0.action == "prepare" } }
+    func finishProcesses(_ completion: @escaping () -> Void) {
+        timer?.invalidate()
+        terminationCompletion = completion
+        jobs.values.forEach { $0.cancel() }
+        if jobs.isEmpty { terminationCompletion = nil; completion() }
+    }
+
+    private func launch(_ arguments: [String], key: String, acceptFailureJSON: Bool = false,
+                        output: ((String) -> Void)? = nil, diagnostic: ((String) -> Void)? = nil,
+                        completion: @escaping (Result<Data, Error>) -> Void) {
+        guard jobs[key] == nil else { completion(.failure(HarborError("This operation is already running."))); return }
+        let job = CLIJob(), stdout = Pipe(), stderr = Pipe()
+        job.process.executableURL = URL(fileURLWithPath: cli); job.process.arguments = arguments
+        var environment = ProcessInfo.processInfo.environment; environment["HARBORVM_HOME"] = root
+        job.process.environment = environment
+        job.process.standardInput = FileHandle.nullDevice
+        job.process.standardOutput = stdout; job.process.standardError = stderr
+        do { try job.process.run() } catch { completion(.failure(error)); return }
+        jobs[key] = job
+        let group = DispatchGroup(), out = CLIBytes(), err = CLIBytes()
+        for (pipe, buffer, update) in [(stdout, out, output), (stderr, err, diagnostic)] {
+            group.enter()
+            DispatchQueue.global(qos: .userInitiated).async {
+                while true {
+                    let chunk = pipe.fileHandleForReading.availableData
+                    if chunk.isEmpty { break }
+                    buffer.append(chunk)
+                    if let update { buffer.deliver(update) }
+                }
+                try? pipe.fileHandleForReading.close()
+                group.leave()
+            }
+        }
+        DispatchQueue.global(qos: .userInitiated).async {
+            job.process.waitUntilExit(); group.wait()
+            let (data, clipped) = out.result(), (failure, _) = err.result()
+            let status = job.process.terminationStatus
+            DispatchQueue.main.async { [weak self] in
+                self?.jobs.removeValue(forKey: key)
+                if job.cancelled { completion(.failure(HarborError("Cancelled."))) }
+                else if clipped { completion(.failure(HarborError("Output exceeded the 8 MiB capture limit."))) }
+                else if status != 0 && !(acceptFailureJSON && !data.isEmpty) {
+                    let raw = String(decoding: failure, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+                    let value = try? JSONSerialization.jsonObject(with: failure) as? [String: Any]
+                    completion(.failure(HarborError(value?["error"] as? String ?? (raw.isEmpty ? "Command exited with status \(status)." : raw))))
+                } else { completion(.success(data)) }
+                if self?.jobs.isEmpty == true, let finished = self?.terminationCompletion {
+                    self?.terminationCompletion = nil; finished()
+                }
+            }
+        }
+    }
     init(root: String, cli: String) {
         self.root = root; self.cli = cli
         reload()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.revision += 1 }
+        timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.revision += 1; self?.refreshStatus() }
     }
     deinit { timer?.invalidate() }
     func runCLI(_ arguments: [String]) throws -> Data {
@@ -50,7 +264,7 @@ final class WorkspaceModel: ObservableObject {
     func reload() {
         do {
             profiles = try JSONDecoder().decode([MachineProfile].self, from: runCLI(["profile", "list"]))
-            if selectedID == nil { selectedID = profiles.first?.id }
+            if !profiles.contains(where: { $0.id == selectedID }) { selectedID = profiles.first?.id }
         } catch { errorMessage = error.localizedDescription }
     }
     func machine(_ id: String, refreshStopped: Bool = false) throws -> NativeMachine {
@@ -83,6 +297,16 @@ final class WorkspaceModel: ObservableObject {
                 completion(["ok": true]); return
             }
             if action == "refresh" { reload(); completion(["ok": true]); return }
+            if action == "quit" {
+                guard !hasActiveMachines, !preparing else { throw HarborError("Stop active machines and finish disk preparation before quitting") }
+                completion(["ok": true])
+                DispatchQueue.main.async { NSApp.terminate(nil) }
+                return
+            }
+            if action == "close-window" {
+                (NSApp.delegate as? ApplicationDelegate)?.window?.performClose(nil)
+                completion(["ok": true]); return
+            }
             if action == "app-screenshot" {
                 guard let view = NSApp.windows.first(where: { $0.isVisible })?.contentView,
                       let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw HarborError("No visible workspace window") }

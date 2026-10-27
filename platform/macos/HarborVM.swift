@@ -22,13 +22,14 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             guard setup.terminationStatus == 0 else { throw HarborError("Cannot initialize the profile store") }
             model = WorkspaceModel(root: root, cli: cli)
             server = try ControlServer(root: root, model: model)
-            window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+            window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 920), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
             window.title = "HarborVM"; window.delegate = self; window.isReleasedWhenClosed = false
+            window.minSize = NSSize(width: 1120, height: 762)
+            window.titlebarAppearsTransparent = true
+            window.backgroundColor = NSColor(red: 0.065, green: 0.073, blue: 0.080, alpha: 1)
             window.contentView = NSHostingView(rootView: WorkspaceView(model: model))
             window.center(); window.makeKeyAndOrderFront(nil)
-            let menu = NSMenu(), application = NSMenu(), item = NSMenuItem()
-            application.addItem(withTitle: "Quit HarborVM", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-            item.submenu = application; menu.addItem(item); NSApp.mainMenu = menu
+            installMenus()
             server?.start()
             NSApp.activate(ignoringOtherApps: true)
         } catch {
@@ -36,13 +37,46 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             NSApp.terminate(nil)
         }
     }
+    private func installMenus() {
+        let menu = NSMenu()
+        func addMenu(_ title: String) -> NSMenu {
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            let submenu = NSMenu(title: title); item.submenu = submenu; menu.addItem(item)
+            return submenu
+        }
+        let application = addMenu("HarborVM")
+        application.addItem(withTitle: "Hide HarborVM", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        application.addItem(.separator())
+        application.addItem(withTitle: "Quit HarborVM", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let edit = addMenu("Edit")
+        edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        edit.addItem(.separator())
+        edit.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        let windows = addMenu("Window")
+        windows.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windows.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        NSApp.windowsMenu = windows
+        NSApp.mainMenu = menu
+    }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { window?.makeKeyAndOrderFront(nil); return true }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard model?.hasActiveMachines == true else { return .terminateNow }
-        model.errorMessage = "Shut down or force stop your active machines before quitting HarborVM."
-        window.makeKeyAndOrderFront(nil)
-        return .terminateCancel
+        guard let model else { return .terminateNow }
+        if model.hasActiveMachines || model.preparing || model.creating {
+            model.errorMessage = model.hasActiveMachines
+                ? "Shut down or force stop your active machines before quitting HarborVM."
+                : "Let machine preparation or profile creation finish before quitting HarborVM."
+            window.makeKeyAndOrderFront(nil)
+            return .terminateCancel
+        }
+        // Codex owns subprocess-group cleanup. Wait for its Rust supervisor to finish.
+        model.finishProcesses { DispatchQueue.main.async { sender.reply(toApplicationShouldTerminate: true) } }
+        return .terminateLater
     }
 }
 
