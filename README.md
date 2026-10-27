@@ -2,7 +2,7 @@
 
 https://github.com/user-attachments/assets/97017c14-0837-447a-b53c-8ba10b4b690e
 
-A local VM workspace for agent-driven browser testing on Apple Silicon, with a Rust core and CLI.
+**E2EVM is an open-source local VM workspace for AI agent browser testing on Apple Silicon Macs.** Run headed Playwright tests and browser automation on a separate guest desktop while you keep using your Mac.
 
 You're scrolling X, replying to a message, or doing something else. Then your agent starts an E2E run, and a browser jumps in front of you and steals focus. Give the tests their own desktop: E2EVM runs the browser and test commands inside a VM, while you keep using your Mac.
 
@@ -103,6 +103,16 @@ The [instructions](examples/agent-instructions.md) can be added to a project's `
 
 For a minimal Linux machine, use `--without all`. To omit selected tools, use `--without node,playwright`. Turning off a prerequisite also turns off its dependents. The core connection runtime remains available. See [setup choices](docs/usage.md).
 
+## Common questions
+
+**Does the browser take over my Mac?** The test browser and commands run inside the VM. Agent-triggered startup keeps your current app in focus; open the workspace when you want to watch.
+
+**Does my agent run inside the VM?** Your existing coding agent invokes E2EVM's host CLI to run guest commands. The optional chat panel gives advice and does not execute it automatically.
+
+**What do I need?** An Apple Silicon Mac with macOS 14 or newer. This preview builds from source; the supplied setup and testing skills target a dedicated Ubuntu VM.
+
+[Read all 10 answers](docs/faq.md), including screenshots, local development servers, macOS guests, scheduled runs, and security boundaries.
+
 ## Connect an assistant
 
 Codex is the default and uses your installed CLI and its existing sign-in. E2EVM does not install or authenticate it. Select a different connection in the assistant's settings, or configure one from the terminal:
@@ -122,6 +132,7 @@ Assistant replies are suggestions. They do not run guest commands. Conversations
 
 - [macOS guests and Apple licensing](docs/macos.md)
 - [Agent skill, instructions, and prompts](docs/agents.md)
+- [Frequently asked questions](docs/faq.md)
 - [Use cases and automation recipes](docs/use-cases.md)
 - [Usage and troubleshooting](docs/usage.md)
 - [Architecture and isolation](docs/architecture.md)
